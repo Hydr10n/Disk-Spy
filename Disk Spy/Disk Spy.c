@@ -1,6 +1,6 @@
 /*
 Source File: Disk Spy.c
-Last Update: 2018/09/11
+Last Update: 2018/09/12
 Minimum Supported Client: Microsoft Windows Vista [Desktop Only]
 
 This project is hosted on https://github.com/Programmer-YangXun/Disk-Spy/
@@ -890,7 +890,8 @@ LRESULT CALLBACK WndProc_Page_Home(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			EnableWindow(hWnd_Edit_LimitFileSize, (BOOL)pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]);
 			EnableWindow(hWnd_ComboBox_SelectFileSizeUnit, (BOOL)pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]);
 			EnableWindow(hWnd_ComboBox_SelectTimeUnit, (BOOL)pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
-			Button_SetCheck(hWnd_CheckBox_LimitCopyTime, (pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]) ? (BST_CHECKED) : (BST_UNCHECKED));
+			Button_SetCheck(hWnd_CheckBox_LimitCopyTime, pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
+			Button_SetCheck(hWnd_CheckBox_LimitFileSize, pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
 		}
 		break;
 		case Identifier_Button_DisableRunAtStartup:
@@ -1086,8 +1087,8 @@ LRESULT CALLBACK WndProc_Page_Home(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			{
 				EnableWindow(hWnd_Button_StartCopy, !ComboBox_GetCurSel(hWnd_ComboBox_SelectOption));
 				EnableSpecifiedChildWindows(TRUE);
-				Button_SetCheck(hWnd_CheckBox_LimitCopyTime, (pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1] = (BYTE)ComboBox_GetItemData((HWND)lParam, ComboBox_GetCurSel((HWND)lParam)) - 'A']) ? (BST_CHECKED) : (BST_UNCHECKED));
-				Button_SetCheck(hWnd_CheckBox_LimitFileSize, (pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]) ? (BST_CHECKED) : (BST_UNCHECKED));
+				Button_SetCheck(hWnd_CheckBox_LimitCopyTime, pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1] = (BYTE)ComboBox_GetItemData((HWND)lParam, ComboBox_GetCurSel((HWND)lParam)) - 'A']);
+				Button_SetCheck(hWnd_CheckBox_LimitFileSize, pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]);
 				ComboBox_SetCurSel(hWnd_ComboBox_SelectFileSizeUnit, pSettingsData->byteFileSizeUnit[byteSelectedDriveIndexes[1]]);
 				ComboBox_SetCurSel(hWnd_ComboBox_SelectTimeUnit, pSettingsData->byteTimeUnit[byteSelectedDriveIndexes[1]]);
 				SetDlgItemInt(TabControlPagesData[TabControl_Page_Home].hWnd, Identifier_Edit_LimitCopyTime, (UINT)pSettingsData->wMaxCopyTime[byteSelectedDriveIndexes[1]], FALSE);
@@ -1174,15 +1175,14 @@ LRESULT CALLBACK WndProc_Page_Home(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 		{
 			if (((PDEV_BROADCAST_HDR)lParam)->dbch_devicetype == DBT_DEVTYP_VOLUME)
 			{
-				PDEV_BROADCAST_VOLUME pDevBroadcastVolume = (PDEV_BROADCAST_VOLUME)lParam;
 				WCHAR wchDriveLetter = L'A';
 				for (; wchDriveLetter <= L'Z'; wchDriveLetter++)
 				{
-					if (pDevBroadcastVolume->dbcv_unitmask & 0x01)
+					if (((PDEV_BROADCAST_VOLUME)lParam)->dbcv_unitmask & 0x01)
 					{
 						break;
 					}
-					pDevBroadcastVolume->dbcv_unitmask >>= 1;
+					((PDEV_BROADCAST_VOLUME)lParam)->dbcv_unitmask >>= 1;
 				}
 				LPWSTR lpwDriveName = ((WCHAR[]) { wchDriveLetter, L':', 0 });
 				BYTE byteDriveIndex = wchDriveLetter - L'A';
