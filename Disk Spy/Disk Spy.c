@@ -891,7 +891,7 @@ LRESULT CALLBACK WndProc_Page_Home(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 			EnableWindow(hWnd_ComboBox_SelectFileSizeUnit, (BOOL)pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]);
 			EnableWindow(hWnd_ComboBox_SelectTimeUnit, (BOOL)pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
 			Button_SetCheck(hWnd_CheckBox_LimitCopyTime, pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
-			Button_SetCheck(hWnd_CheckBox_LimitFileSize, pSettingsData->byteLimitCopyTime[byteSelectedDriveIndexes[1]]);
+			Button_SetCheck(hWnd_CheckBox_LimitFileSize, pSettingsData->byteLimitFileSize[byteSelectedDriveIndexes[1]]);
 		}
 		break;
 		case Identifier_Button_DisableRunAtStartup:
