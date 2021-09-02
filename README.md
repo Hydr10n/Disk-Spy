@@ -11,20 +11,21 @@ Additionally, there is also a filter, which can be configured in the file "Filte
 
 MaxFileSize # Key: int
 # If set, any file whose size is greater than the value is ignored
-# Valid range: 0~9999 (0=Disabled)
+# Valid values: 0~9999 (0=Disabled)
 
 FileUnit # Key: enum
 # Valid values: 0=KB, 1=MB, 2=GB
 
 MaxDuration # Key: int
 # If set, copying stops when the duration is reached
-# Valid range: 0~9999; 0=Disabled
+# Valid values: 0~9999; 0=Disabled
 
 TimeUnit # Key: enum
 # Valid values: 0=Sec, 1=Min
 
 ReservedStorageSpaceGB # Key: int
 # If set, copying stops when the free space of the drive where this app is located in is less than the value
+# Valid values: 0~9999; 0=Disabled
 
 ---
 
