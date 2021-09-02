@@ -1,11 +1,29 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2003
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31521.260
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Disk Spy", "Disk Spy\Disk Spy.vcxproj", "{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Disk Spy", "Disk Spy\Disk Spy.vcxproj", "{27B3313E-27A8-4C3C-9260-93A65066D692}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "File", "File\File.vcxitems", "{45363754-266F-4F0F-8A13-D6DA8156543C}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Device", "Device\Device.vcxitems", "{77029AFD-698E-4772-ACB2-325769028463}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RegistryHelpers", "RegistryHelpers\RegistryHelpers.vcxitems", "{FB2AEBA8-19A3-4B49-8A11-F4F8257ACC6B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Data", "Data\Data.vcxitems", "{57F80F3E-9172-4C16-850B-70C0A652491A}"
 EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Data\Data.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		Device\Device.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		File\File.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		RegistryHelpers\RegistryHelpers.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		File\File.vcxitems*{45363754-266f-4f0f-8a13-d6da8156543c}*SharedItemsImports = 9
+		Data\Data.vcxitems*{57f80f3e-9172-4c16-850b-70c0a652491a}*SharedItemsImports = 9
+		Device\Device.vcxitems*{77029afd-698e-4772-acb2-325769028463}*SharedItemsImports = 9
+		RegistryHelpers\RegistryHelpers.vcxitems*{fb2aeba8-19a3-4b49-8a11-f4f8257acc6b}*SharedItemsImports = 9
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
@@ -13,19 +31,19 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Debug|x64.ActiveCfg = Debug|x64
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Debug|x64.Build.0 = Debug|x64
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Debug|x86.ActiveCfg = Debug|Win32
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Debug|x86.Build.0 = Debug|Win32
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Release|x64.ActiveCfg = Release|x64
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Release|x64.Build.0 = Release|x64
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Release|x86.ActiveCfg = Release|Win32
-		{EB3F0D13-B956-48D3-BAF8-F1922FE927CF}.Release|x86.Build.0 = Release|Win32
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Debug|x64.ActiveCfg = Debug|x64
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Debug|x64.Build.0 = Debug|x64
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Debug|x86.ActiveCfg = Debug|Win32
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Debug|x86.Build.0 = Debug|Win32
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Release|x64.ActiveCfg = Release|x64
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Release|x64.Build.0 = Release|x64
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Release|x86.ActiveCfg = Release|Win32
+		{27B3313E-27A8-4C3C-9260-93A65066D692}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {C94FADCA-A662-4597-890F-26B650011023}
+		SolutionGuid = {220B7793-CE3D-4019-BD44-C2FEA78FC17E}
 	EndGlobalSection
 EndGlobal
