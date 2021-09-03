@@ -9,20 +9,20 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "File", "File\File.vcxitems"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Device", "Device\Device.vcxitems", "{77029AFD-698E-4772-ACB2-325769028463}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RegistryHelpers", "RegistryHelpers\RegistryHelpers.vcxitems", "{FB2AEBA8-19A3-4B49-8A11-F4F8257ACC6B}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Data", "Data\Data.vcxitems", "{57F80F3E-9172-4C16-850B-70C0A652491A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Registry", "Registry\Registry.vcxitems", "{4411D12A-4BB8-43C6-9226-FCDE77AC630B}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Data\Data.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
 		Device\Device.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
 		File\File.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
-		RegistryHelpers\RegistryHelpers.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		Registry\Registry.vcxitems*{27b3313e-27a8-4c3c-9260-93a65066d692}*SharedItemsImports = 4
+		Registry\Registry.vcxitems*{4411d12a-4bb8-43c6-9226-fcde77ac630b}*SharedItemsImports = 9
 		File\File.vcxitems*{45363754-266f-4f0f-8a13-d6da8156543c}*SharedItemsImports = 9
 		Data\Data.vcxitems*{57f80f3e-9172-4c16-850b-70c0a652491a}*SharedItemsImports = 9
 		Device\Device.vcxitems*{77029afd-698e-4772-acb2-325769028463}*SharedItemsImports = 9
-		RegistryHelpers\RegistryHelpers.vcxitems*{fb2aeba8-19a3-4b49-8a11-f4f8257acc6b}*SharedItemsImports = 9
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

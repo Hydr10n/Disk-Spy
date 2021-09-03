@@ -1,20 +1,20 @@
 /*
- * Header File: RegistryHelpers.cpp
- * Last Update: 2021/09/02
+ * Header File: Registry.cpp
+ * Last Update: 2021/09/03
  *
  * Copyright (C) Hydr10n@GitHub. All Rights Reserved.
  */
 
 #pragma once
 
-#include "RegistryHelpers.h"
+#include "Registry.h"
 
 #include <Shlwapi.h>
 
 #include <memory>
 
 namespace Hydr10n {
-	namespace RegistryHelpers {
+	namespace Registry {
 		LSTATUS WINAPI RunAtStartup(RegistryOperation operation, LPCWSTR lpName, LPCWSTR lpPath, LPCWSTR lpCommandLine, BOOL localMachineIfTrueElseCurrentUser) {
 			BOOL bIsWoW64Process;
 			if (!IsWow64Process(GetCurrentProcess(), &bIsWoW64Process))

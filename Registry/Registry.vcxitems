@@ -3,7 +3,7 @@
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
     <HasSharedItems>true</HasSharedItems>
-    <ItemsProjectGuid>{fb2aeba8-19a3-4b49-8a11-f4f8257acc6b}</ItemsProjectGuid>
+    <ItemsProjectGuid>{4411d12a-4bb8-43c6-9226-fcde77ac630b}</ItemsProjectGuid>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -14,9 +14,9 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="$(MSBuildThisFileDirectory)RegistryHelpers.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)Registry.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)RegistryHelpers.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)Registry.cpp" />
   </ItemGroup>
 </Project>

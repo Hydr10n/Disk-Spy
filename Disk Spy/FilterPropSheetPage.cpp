@@ -4,40 +4,15 @@
 
 #include "Device.h"
 
+#include "WindowHelpers.h"
+
 #include "MyAppData.h"
 
 #include <Uxtheme.h>
 
-namespace Hydr10n {
-	namespace WindowHelpers {
-		constexpr void CenterRect(_In_ const RECT& border, _Inout_ RECT& rect) {
-			const auto rectWidth = rect.right - rect.left, rectHeight = rect.bottom - rect.top;
-			rect.left = (border.right + border.left - rectWidth) / 2;
-			rect.top = (border.bottom + border.top - rectHeight) / 2;
-			rect.right = rect.left + rectWidth;
-			rect.bottom = rect.top + rectHeight;
-		}
-
-		inline LPARAM WINAPI GetListViewItemData(HWND hWnd, int iItem) {
-			LVITEM item;
-			item.mask = LVIF_PARAM;
-			item.iItem = iItem;
-			item.iSubItem = 0;
-			return ListView_GetItem(hWnd, &item) ? item.lParam : -1;
-		}
-
-		inline int WINAPI FindListViewItem(HWND hWnd, int iItem, LPARAM lParam) {
-			LVFINDINFO info;
-			info.flags = LVFI_PARAM;
-			info.lParam = lParam;
-			return ListView_FindItem(hWnd, iItem, &info);
-		}
-	}
-}
-
 using namespace Hydr10n::Device;
-using namespace Hydr10n::WindowHelpers;
 using namespace std;
+using namespace WindowHelpers;
 
 struct ColumnData {
 	const LPCTSTR Text;
@@ -52,6 +27,21 @@ union {
 		{ TEXT("Excluded"), 2 }
 	};
 } g_whitelistColumnData;
+
+inline LPARAM WINAPI GetListViewItemData(HWND hWnd, int iItem) {
+	LVITEM item;
+	item.mask = LVIF_PARAM;
+	item.iItem = iItem;
+	item.iSubItem = 0;
+	return ListView_GetItem(hWnd, &item) ? item.lParam : -1;
+}
+
+inline int WINAPI FindListViewItem(HWND hWnd, int iItem, LPARAM lParam) {
+	LVFINDINFO info;
+	info.flags = LVFI_PARAM;
+	info.lParam = lParam;
+	return ListView_FindItem(hWnd, iItem, &info);
+}
 
 void LoadWhitelistMenu(HWND hWnd, LPPOINT lpPoint) {
 	const auto index = ListView_GetNextItem(hWnd, -1, LVNI_SELECTED);
@@ -153,14 +143,9 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 
 	switch (uMsg) {
 	case WM_INITDIALOG: {
-		s_myAppData = reinterpret_cast<MyAppData*>(reinterpret_cast<LPPROPSHEETPAGE>(lParam)->lParam);
+		CenterWindow(GetParent(hPage));
 
-		RECT rc, rc2;
-		const auto parent = GetParent(hPage);
-		if (GetWindowRect(GetParent(parent), &rc) && GetWindowRect(parent, &rc2)) {
-			CenterRect(rc, rc2);
-			SetWindowPos(parent, nullptr, static_cast<int>(rc2.left), static_cast<int>(rc2.top), 0, 0, SWP_NOSIZE);
-		}
+		s_myAppData = reinterpret_cast<MyAppData*>(reinterpret_cast<LPPROPSHEETPAGE>(lParam)->lParam);
 
 		auto& filter = s_myAppData->Filter;
 
@@ -183,7 +168,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 		for (const auto timeUnit : TimeUnits)
 			ComboBox_AddString(comboTimeUnits, timeUnit);
 		ComboBox_SetCurSel(comboTimeUnits, static_cast<int>(filter.CopyLimits.TimeUnit));
-		
+
 		SetDlgItemInt(hPage, IDC_EDIT_RESERVED_STORAGE_SPACE, filter.CopyLimits.ReservedStorageSpaceGB, FALSE);
 
 		SNDMSG(GetDlgItem(hPage, IDC_SPIN_RESERVED_STORAGE_SPACE), UDM_SETRANGE, 0, MAKELPARAM(FilterData::CopyLimitsData::MaxValue, 0));

@@ -7,7 +7,7 @@
 
 #include "Device.h"
 
-#include "RegistryHelpers.h"
+#include "Registry.h"
 
 #include "MyAppData.h"
 
@@ -18,7 +18,7 @@
 
 using namespace Hydr10n::Device;
 using namespace Hydr10n::File;
-using namespace Hydr10n::RegistryHelpers;
+using namespace Hydr10n::Registry;
 using namespace std;
 
 #define TIME_FORMAT L"[%hu-%02hu-%02hu %02hu:%02hu:%02hu]"
@@ -118,7 +118,7 @@ DWORD CALLBACK CopyProgressRoutine(LARGE_INTEGER TotalFileSize, LARGE_INTEGER To
 
 	const auto timePaused = GetTickCount64();
 	while (param->State == State::Paused)
-		;
+		Sleep(100);
 	const auto timeNow = GetTickCount64();
 	param->Time.PauseDuration += timeNow - timePaused;
 	const auto maxDuration = GetFilterMaxDuration();
@@ -197,7 +197,7 @@ BOOL CALLBACK OnFileFound(LPCWSTR lpPath, const WIN32_FIND_DATAW& findData, LPVO
 
 	const auto timePaused = GetTickCount64();
 	while (param->State == State::Paused)
-		;
+		Sleep(100);
 	const auto timeNow = GetTickCount64();
 	param->Time.PauseDuration += timeNow - timePaused;
 	const auto maxDuration = GetFilterMaxDuration();
@@ -394,7 +394,11 @@ void PauseCopying(CopyDataParamEx& param) {
 	PSTMSG(windows.hProgressCopiedData, PBM_SETSTATE, PBST_PAUSED, 0);
 }
 
-void StopCopying(CopyDataParamEx& param) { param.State = State::Stopped; }
+void StopCopying(CopyDataParamEx& param) {
+	param.State = State::Stopped;
+
+	MsgWaitForMultipleObjects(1, &param.hThread, TRUE, INFINITE, QS_ALLINPUT);
+}
 
 void AddTooltips(const Windows& windows) {
 	const struct {
@@ -419,7 +423,7 @@ void AddTooltips(const Windows& windows) {
 	}
 }
 
-void CopyWindows(Windows& windows) {
+void DuplicateWindows(Windows& windows) {
 	for (int i = 0; i < ARRAYSIZE(g_windows->Array); i++) {
 		const auto g_hWnd = g_windows->Array[i];
 
@@ -471,8 +475,8 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 		int selectedIndex;
 		for (int i = 0; i < ARRAYSIZE(s_copyDataParamEx); i++) {
 			s_copyDataParamEx[i].DriveNumber = i;
-
 			s_copyDataParamEx[i].DriveID = GenerateDriveID(i);
+			s_copyDataParamEx[i].State = State::Stopped;
 
 			const auto driveLetter = static_cast<TCHAR>('A' + i);
 
@@ -577,7 +581,7 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 				auto& windows = param.Windows;
 
 				if (windows.hButtonStartCopying == nullptr) {
-					CopyWindows(windows);
+					DuplicateWindows(windows);
 
 					if (windows.hButtonStartCopying == nullptr)
 						for (auto& window : windows.Array) {
@@ -708,11 +712,8 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 		case DBT_DEVICEQUERYREMOVE: {
 			if (reinterpret_cast<PDEV_BROADCAST_HDR>(lParam)->dbch_devicetype == DBT_DEVTYP_HANDLE)
 				for (auto& param : s_copyDataParamEx)
-					if (param.DevBroadcastHandle.dbch_handle == reinterpret_cast<PDEV_BROADCAST_HANDLE>(lParam)->dbch_handle) {
+					if (param.DevBroadcastHandle.dbch_handle == reinterpret_cast<PDEV_BROADCAST_HANDLE>(lParam)->dbch_handle)
 						StopCopying(param);
-
-						MsgWaitForMultipleObjects(1, &param.hThread, TRUE, INFINITE, QS_ALLINPUT);
-					}
 		}	return TRUE;
 		}
 	}	break;
@@ -733,11 +734,8 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 	}	break;
 
 	case WM_DESTROY: {
-		for (auto& param : s_copyDataParamEx) {
+		for (auto& param : s_copyDataParamEx)
 			StopCopying(param);
-
-			MsgWaitForMultipleObjects(1, &param.hThread, TRUE, INFINITE, QS_ALLINPUT);
-		}
 
 		delete g_myAppData;
 

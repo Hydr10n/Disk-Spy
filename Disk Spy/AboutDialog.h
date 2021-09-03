@@ -2,8 +2,12 @@
 
 #include "pch.h"
 
+#include "WindowHelpers.h"
+
 INT_PTR CALLBACK AboutDialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	switch (uMsg) {
+	case WM_INITDIALOG: WindowHelpers::CenterWindow(hDlg); break;
+
 	case WM_COMMAND: {
 		switch (LOWORD(wParam)) {
 		case IDOK:
