@@ -194,8 +194,6 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 
 		for (int i = 0; i < ARRAYSIZE(s_driveIDs); i++)
 			ReplaceWhitelistItem(whitelist, i);
-
-		ListView_SortItemsEx(whitelist, WhitelistCompare, whitelist);
 	}	break;
 
 	case WM_COMMAND: {
