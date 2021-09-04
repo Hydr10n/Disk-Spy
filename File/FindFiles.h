@@ -1,6 +1,6 @@
 /*
  * Header File: FindFiles.h
- * Last Update: 2021/09/02
+ * Last Update: 2021/09/03
  *
  * Copyright (C) Hydr10n@GitHub. All Rights Reserved.
  */
@@ -17,6 +17,6 @@ namespace Hydr10n {
 
 		using LeaveDirectoryEventHandler = EnterDirectoryEventHandler;
 
-		BOOL WINAPI FindFiles(LPCWSTR lpPath, const LPBOOL lpStop, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam);
+		BOOL WINAPI FindFiles(LPCWSTR lpPath, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam);
 	}
 }

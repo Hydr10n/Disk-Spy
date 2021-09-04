@@ -1,6 +1,6 @@
 /*
  * Header File: FindFiles.cpp
- * Last Update: 2021/09/02
+ * Last Update: 2021/09/03
  *
  * Copyright (C) Hydr10n@GitHub. All Rights Reserved.
  */
@@ -18,13 +18,13 @@ using namespace Hydr10n::File;
 
 namespace Hydr10n {
 	namespace File {
-		BOOL WINAPI FindFiles(LPCWSTR lpPath, const LPBOOL lpStop, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
+		BOOL WINAPI FindFiles(LPCWSTR lpPath, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
 			const unique_ptr<WCHAR> buf(new WCHAR[UNICODE_STRING_MAX_CHARS]);
 			const auto str = buf.get();
 			if (str == nullptr)
 				return FALSE;
 
-			const auto FindFiles = [&](const auto& FindFiles, const LPBOOL lpStop, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
+			const auto FindFiles = [&](const auto& FindFiles, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
 				const int i = wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls*.*", str) - 3;
 
 				WIN32_FIND_DATAW findData;
@@ -39,12 +39,6 @@ namespace Hydr10n {
 
 				if (wrapper.Handle != INVALID_HANDLE_VALUE) {
 					do {
-						if (lpStop != nullptr && *lpStop == TRUE) {
-							SetLastError(ERROR_CANCELLED);
-
-							return FALSE;
-						}
-
 						if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 							if (enterDirectoryEventHandler != nullptr && !enterDirectoryEventHandler(str, findData, lpParam)) {
 								SetLastError(ERROR_CANCELLED);
@@ -55,7 +49,7 @@ namespace Hydr10n {
 							if (!IsCurrentOrParentDirectory(findData.cFileName)) {
 								wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls%ls\\", str, findData.cFileName);
 
-								if (!FindFiles(FindFiles, lpStop, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
+								if (!FindFiles(FindFiles, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
 									return FALSE;
 
 								str[i] = 0;
@@ -82,7 +76,7 @@ namespace Hydr10n {
 
 			(void)lstrcpynW(str, lpPath, UNICODE_STRING_MAX_CHARS);
 
-			return FindFiles(FindFiles, lpStop, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam);
+			return FindFiles(FindFiles, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam);
 		}
 	}
 }

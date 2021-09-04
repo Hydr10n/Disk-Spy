@@ -23,7 +23,7 @@ using namespace std;
 
 #define TIME_FORMAT L"[%hu-%02hu-%02hu %02hu:%02hu:%02hu]"
 
-enum class State : BOOL { Running, Stopped, Paused };
+enum class State { Stopped, Running, Paused };
 
 enum class MyWindowMessage { SetTextW = WM_USER + 1 };
 
@@ -70,6 +70,7 @@ BOOL MySetWindowText(HWND hWnd, LPCWSTR lpText) { return PSTMSG(g_hDlg, static_c
 
 DWORD64 GetFilterMaxFileSize() {
 	using FileSizeUnit = MyAppData::FilterData::FileSizeUnit;
+
 	DWORD64 dw64MaxFileSize = g_myAppData->Filter.CopyLimits.MaxFileSize;
 	switch (g_myAppData->Filter.CopyLimits.FileSizeUnit) {
 	case FileSizeUnit::KB: dw64MaxFileSize <<= 10; break;
@@ -81,6 +82,7 @@ DWORD64 GetFilterMaxFileSize() {
 
 DWORD64 GetFilterMaxDuration() {
 	using TimeUnit = MyAppData::FilterData::TimeUnit;
+
 	DWORD64 dw64MaxDuration = g_myAppData->Filter.CopyLimits.MaxDuration;
 	switch (g_myAppData->Filter.CopyLimits.TimeUnit) {
 	case TimeUnit::Sec: dw64MaxDuration *= 1000; break;
@@ -114,17 +116,28 @@ bool FilterFile(const WIN32_FIND_DATAW& sourceFindData, const WIN32_FIND_DATAW* 
 		&& (!maxFileSize || sourceFileSize <= maxFileSize);
 }
 
+bool DetermineState(CopyDataParam& param) {
+	const auto timePaused = GetTickCount64();
+
+	while (param.State == State::Paused)
+		Sleep(100);
+
+	const auto timeNow = GetTickCount64();
+
+	param.Time.PauseDuration += timeNow - timePaused;
+
+	const auto maxDuration = GetFilterMaxDuration();
+	if ((maxDuration && timeNow - param.Time.Start - param.Time.PauseDuration > maxDuration)
+		|| param.State == State::Stopped)
+		return false;
+
+	return true;
+}
+
 DWORD CALLBACK CopyProgressRoutine(LARGE_INTEGER TotalFileSize, LARGE_INTEGER TotalBytesTransferred, LARGE_INTEGER StreamSize, LARGE_INTEGER StreamBytesTransferred, DWORD dwStreamNumber, DWORD dwCallbackReason, HANDLE hSourceFile, HANDLE hDestinationFile, LPVOID lpData) {
 	const auto param = reinterpret_cast<CopyDataParam*>(lpData);
 
-	const auto timePaused = GetTickCount64();
-	while (param->State == State::Paused)
-		Sleep(100);
-	const auto timeNow = GetTickCount64();
-	param->Time.PauseDuration += timeNow - timePaused;
-	const auto maxDuration = GetFilterMaxDuration();
-	if ((maxDuration && timeNow - param->Time.Start - param->Time.PauseDuration > maxDuration)
-		|| param->State == State::Stopped)
+	if (!DetermineState(*param))
 		return PROGRESS_CANCEL;
 
 	PSTMSG(param->Windows.hProgressCopiedData, PBM_SETPOS, static_cast<WPARAM>(TotalFileSize.QuadPart ? 100 * TotalBytesTransferred.QuadPart / TotalFileSize.QuadPart : 0), 0);
@@ -196,14 +209,7 @@ BOOL CALLBACK OnLeavingDirectory(LPCWSTR lpPath, const WIN32_FIND_DATAW& findDat
 BOOL CALLBACK OnFileFound(LPCWSTR lpPath, const WIN32_FIND_DATAW& findData, LPVOID lpParam) {
 	const auto param = reinterpret_cast<CopyDataParam*>(lpParam);
 
-	const auto timePaused = GetTickCount64();
-	while (param->State == State::Paused)
-		Sleep(100);
-	const auto timeNow = GetTickCount64();
-	param->Time.PauseDuration += timeNow - timePaused;
-	const auto maxDuration = GetFilterMaxDuration();
-	if ((maxDuration && timeNow - param->Time.Start - param->Time.PauseDuration > maxDuration)
-		|| param->State == State::Stopped)
+	if (!DetermineState(*param))
 		return FALSE;
 
 	constexpr auto StrLen = UNICODE_STRING_MAX_CHARS;
@@ -291,7 +297,7 @@ void StartCopying(CopyDataParamEx& param) {
 					SYSTEMTIME localTime;
 					GetLocalTime(&localTime);
 					wsprintfW(szLogPath, L"%ls%hu-%02hu-%02hu %02hu-%02hu-%02hu.log", szLogPath, localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond);
-					if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)) != INVALID_HANDLE_VALUE) {
+					if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, nullptr)) != INVALID_HANDLE_VALUE) {
 						auto& statistics = param->Statistics;
 						statistics = {};
 
@@ -304,10 +310,10 @@ void StartCopying(CopyDataParamEx& param) {
 
 						param->DataPath = szDataPath;
 						param->SkipCurrentFile = FALSE;
-						param->Time = {};
+						param->Time = { GetTickCount64() };
 						param->State = State::Running;
 
-						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), reinterpret_cast<LPBOOL>(&param->State), OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
+						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
 
 						WCHAR szByteSize[20] = L"0 KB";
 						StrFormatByteSizeEx(statistics.SizeCopied, SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS, szByteSize, ARRAYSIZE(szByteSize));
@@ -438,10 +444,14 @@ void DuplicateWindows(const Windows& source, Windows& destination) {
 		GetWindowRect(window, &windowRect);
 		MapWindowRect(HWND_DESKTOP, parent, &windowRect);
 
-		destination.Array[i] = CreateWindowEx(GetWindowExStyle(window), szClassName, szWindowText, WS_VISIBLE | GetWindowStyle(window), static_cast<int>(windowRect.left), static_cast<int>(windowRect.top), static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top), parent, GetMenu(window), GetWindowInstance(window), nullptr);
+		destination.Array[i] = CreateWindowEx(GetWindowExStyle(window), szClassName, szWindowText, GetWindowStyle(window) & ~WS_VISIBLE, static_cast<int>(windowRect.left), static_cast<int>(windowRect.top), static_cast<int>(windowRect.right - windowRect.left), static_cast<int>(windowRect.bottom - windowRect.top), parent, GetMenu(window), GetWindowInstance(window), nullptr);
 
 		SetWindowFont(destination.Array[i], GetWindowFont(window), FALSE);
 	}
+
+	EnableWindow(destination.hButtonStartCopying, TRUE);
+
+	AddTooltips(destination);
 }
 
 INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -474,28 +484,6 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 		g_hDlg = hDlg;
 
-		const auto comboDrives = GetDlgItem(hDlg, IDC_COMBO_DRIVES);
-		int selectedIndex;
-		for (int i = 0; i < ARRAYSIZE(s_copyDataParamEx); i++) {
-			s_copyDataParamEx[i].DriveInfo.Number = i;
-			s_copyDataParamEx[i].DriveInfo.ID = GenerateDriveID(i);
-			s_copyDataParamEx[i].State = State::Stopped;
-
-			const auto driveLetter = static_cast<TCHAR>('A' + i);
-
-			int index = CB_ERR;
-			if (i == s_selectedDriveNumber)
-				selectedIndex = index = ComboBox_AddString(comboDrives, initializer_list<TCHAR>({ driveLetter, ':', ' ', '*', 0 }).begin());
-			else {
-				const TCHAR szDrive[]{ driveLetter, ':', 0 };
-				if (GetDiskFreeSpaceEx(szDrive, nullptr, nullptr, nullptr))
-					index = ComboBox_AddString(comboDrives, szDrive);
-			}
-			if (index != CB_ERR)
-				ComboBox_SetItemData(comboDrives, index, i);
-		}
-		ComboBox_SetCurSel(comboDrives, selectedIndex);
-
 		auto& windows = s_copyDataParamEx[s_selectedDriveNumber].Windows;
 
 		windows.hButtonStartCopying = GetDlgItem(hDlg, IDC_BUTTON_START_COPYING);
@@ -515,6 +503,33 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 		}
 		SetWindowTextW(windows.hEditDir, L"[Directory: N/A]");
 		SetWindowTextW(windows.hEditFile, L"[File: N/A]");
+
+		AddTooltips(windows);
+
+		const auto comboDrives = GetDlgItem(hDlg, IDC_COMBO_DRIVES);
+		int selectedIndex;
+		for (int i = 0; i < ARRAYSIZE(s_copyDataParamEx); i++) {
+			s_copyDataParamEx[i].DriveInfo = { i, GenerateDriveID(i) };
+
+			const auto driveLetter = static_cast<TCHAR>('A' + i);
+
+			int index = CB_ERR;
+			if (i == s_selectedDriveNumber)
+				selectedIndex = index = ComboBox_AddString(comboDrives, initializer_list<TCHAR>({ driveLetter, ':', ' ', '*', 0 }).begin());
+			else {
+				const TCHAR szDrive[]{ driveLetter, ':', 0 };
+				if (GetDiskFreeSpaceEx(szDrive, nullptr, nullptr, nullptr))
+					index = ComboBox_AddString(comboDrives, szDrive);
+			}
+
+			if (index != CB_ERR) {
+				ComboBox_SetItemData(comboDrives, index, i);
+
+				if (i != s_selectedDriveNumber)
+					DuplicateWindows(s_copyDataParamEx[s_selectedDriveNumber].Windows, s_copyDataParamEx[i].Windows);
+			}
+		}
+		ComboBox_SetCurSel(comboDrives, selectedIndex);
 
 		CheckMenuItem(GetMenu(hDlg), ID_OPTIONS_RUN_AT_STARTUP, RunAtStartup(RegistryOperation::QueryValue, AppName, s_exePath, nullptr, FALSE) == ERROR_SUCCESS ? MF_CHECKED : MF_UNCHECKED);
 	}	break;
@@ -542,7 +557,7 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 			PROPSHEETHEADER propSheetHeader;
 			propSheetHeader.dwSize = sizeof(propSheetHeader);
-			propSheetHeader.dwFlags = PSH_PROPSHEETPAGE | PSH_NOCONTEXTHELP;
+			propSheetHeader.dwFlags = PSH_PROPSHEETPAGE | PSH_NOCONTEXTHELP | PSH_USEPAGELANG;
 			propSheetHeader.hInstance = instance;
 			propSheetHeader.hwndParent = hDlg;
 			propSheetHeader.pszCaption = TEXT("Filter");
@@ -575,35 +590,14 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 				const auto comboDrives = reinterpret_cast<HWND>(lParam);
 
 				const auto driveNumber = static_cast<int>(ComboBox_GetItemData(comboDrives, ComboBox_GetCurSel(comboDrives)));
-
 				if (driveNumber == CB_ERR || s_selectedDriveNumber == driveNumber)
 					break;
 
-				auto& param = s_copyDataParamEx[driveNumber];
+				for (const auto window : s_copyDataParamEx[driveNumber].Windows.Array)
+					ShowWindow(window, SW_SHOW);
 
-				auto& windows = param.Windows;
-
-				if (windows.hButtonStartCopying == nullptr) {
-					DuplicateWindows(s_copyDataParamEx[*g_localDataPath - 'A'].Windows, windows);
-
-					if (windows.hButtonStartCopying == nullptr)
-						for (auto& window : windows.Array) {
-							DestroyWindow(window);
-							window = nullptr;
-						}
-					else {
-						EnableWindow(windows.hButtonStartCopying, TRUE);
-
-						AddTooltips(windows);
-					}
-				}
-				else
-					for (const auto window : windows.Array)
-						ShowWindow(window, SW_SHOW);
-
-				for (auto& window : s_copyDataParamEx[s_selectedDriveNumber].Windows.Array)
-					if (window != nullptr)
-						ShowWindow(window, SW_HIDE);
+				for (const auto window : s_copyDataParamEx[s_selectedDriveNumber].Windows.Array)
+					ShowWindow(window, SW_HIDE);
 
 				s_selectedDriveNumber = driveNumber;
 			}
@@ -670,6 +664,8 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 						}
 
 						if (ret) {
+							DuplicateWindows(s_copyDataParamEx[*g_localDataPath - 'A'].Windows, param.Windows);
+
 							if (IsWindowVisible(hDlg))
 								FlashWindow(hDlg, TRUE);
 							else if (DriveType(driveNumber) != DRIVE_CDROM) {
@@ -724,15 +720,15 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 	case WM_CTLCOLORSTATIC: SetTextColor(reinterpret_cast<HDC>(wParam), RGB(0, 150, 136)); return reinterpret_cast<INT_PTR>(GetStockBrush(WHITE_BRUSH));
 
 	case WM_CLOSE: {
-		bool copying{};
+		bool running{};
 		for (const auto& param : s_copyDataParamEx)
 			if (param.State == State::Running) {
-				copying = true;
+				running = true;
 
 				break;
 			}
 
-		if (!copying || MessageBoxW(hDlg, L"Are you sure you want to exit?", L"Confirm", MB_ICONQUESTION | MB_YESNO) == IDYES)
+		if (!running || MessageBoxW(hDlg, L"Are you sure you want to exit?", L"Confirm", MB_ICONQUESTION | MB_YESNO) == IDYES)
 			DestroyWindow(hDlg);
 	}	break;
 

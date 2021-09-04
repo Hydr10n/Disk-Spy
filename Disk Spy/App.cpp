@@ -19,6 +19,8 @@ int Main()
 
 	const auto dialog = CreateDialog(GetModuleHandle(nullptr), MAKEINTRESOURCE(IDD_DIALOG_MAIN), nullptr, MainWindowProc);
 
+	SNDMSG(dialog, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(LoadIcon(nullptr, IDI_APPLICATION)));
+
 	int argc;
 	const auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);
 	if (argv != nullptr && lstrcmpW(argv[1], Args.Background))
