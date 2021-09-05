@@ -1,6 +1,6 @@
 /*
  * Header File: FindFiles.cpp
- * Last Update: 2021/09/03
+ * Last Update: 2021/09/04
  *
  * Copyright (C) Hydr10n@GitHub. All Rights Reserved.
  */
@@ -13,8 +13,8 @@
 
 #include <memory>
 
-using namespace std;
 using namespace Hydr10n::File;
+using namespace std;
 
 namespace Hydr10n {
 	namespace File {
@@ -25,7 +25,7 @@ namespace Hydr10n {
 				return FALSE;
 
 			const auto FindFiles = [&](const auto& FindFiles, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
-				const int i = wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls*.*", str) - 3;
+				const auto strLen = wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls*.*", str) - 3;
 
 				WIN32_FIND_DATAW findData;
 
@@ -35,7 +35,7 @@ namespace Hydr10n {
 					~HandleWrapper() { FindClose(Handle); }
 				} wrapper{ FindFirstFileW(str, &findData) };
 
-				str[i] = 0;
+				str[strLen] = 0;
 
 				if (wrapper.Handle != INVALID_HANDLE_VALUE) {
 					do {
@@ -52,7 +52,7 @@ namespace Hydr10n {
 								if (!FindFiles(FindFiles, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
 									return FALSE;
 
-								str[i] = 0;
+								str[strLen] = 0;
 							}
 
 							if (leaveDirectoryEventHandler != nullptr && !leaveDirectoryEventHandler(str, findData, lpParam)) {
@@ -67,6 +67,8 @@ namespace Hydr10n {
 							return FALSE;
 						}
 					} while (FindNextFileW(wrapper.Handle, &findData));
+
+					SetLastError(ERROR_SUCCESS);
 
 					return TRUE;
 				}
