@@ -16,6 +16,8 @@
 using namespace Hydr10n::File;
 using namespace std;
 
+#define STOP SetLastError(ERROR_CANCELLED); return FALSE
+
 namespace Hydr10n {
 	namespace File {
 		BOOL WINAPI FindFiles(LPCWSTR lpPath, ErrorOccuredEventHandler errorOccuredEventHandler, FileFoundEventHandler fileFoundEventHandler, EnterDirectoryEventHandler enterDirectoryEventHandler, LeaveDirectoryEventHandler leaveDirectoryEventHandler, LPVOID lpParam) {
@@ -40,32 +42,23 @@ namespace Hydr10n {
 				if (wrapper.Handle != INVALID_HANDLE_VALUE) {
 					do {
 						if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-							if (enterDirectoryEventHandler != nullptr && !enterDirectoryEventHandler(str, findData, lpParam)) {
-								SetLastError(ERROR_CANCELLED);
-
-								return FALSE;
-							}
+							if (enterDirectoryEventHandler != nullptr && !enterDirectoryEventHandler(str, findData, lpParam))
+								STOP;
 
 							if (!IsCurrentOrParentDirectory(findData.cFileName)) {
 								wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls%ls\\", str, findData.cFileName);
 
 								if (!FindFiles(FindFiles, dwDepth + 1, errorOccuredEventHandler, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
-									return FALSE;
+									STOP;
 
 								str[strLen] = 0;
 							}
 
-							if (leaveDirectoryEventHandler != nullptr && !leaveDirectoryEventHandler(str, findData, lpParam)) {
-								SetLastError(ERROR_CANCELLED);
-
-								return FALSE;
-							}
+							if (leaveDirectoryEventHandler != nullptr && !leaveDirectoryEventHandler(str, findData, lpParam))
+								STOP;
 						}
-						else if (fileFoundEventHandler != nullptr && !fileFoundEventHandler(str, findData, lpParam)) {
-							SetLastError(ERROR_CANCELLED);
-
-							return FALSE;
-						}
+						else if (fileFoundEventHandler != nullptr && !fileFoundEventHandler(str, findData, lpParam))
+							STOP;
 					} while (FindNextFileW(wrapper.Handle, &findData));
 
 					if (GetLastError() == ERROR_NO_MORE_FILES) {
@@ -74,11 +67,8 @@ namespace Hydr10n {
 						return TRUE;
 					}
 				}
-				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam)) {
-					SetLastError(ERROR_CANCELLED);
-
-					return FALSE;
-				}
+				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
+					STOP;
 
 				return dwDepth ? TRUE : FALSE;
 			};
