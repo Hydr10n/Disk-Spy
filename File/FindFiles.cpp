@@ -16,7 +16,7 @@
 using namespace Hydr10n::File;
 using namespace std;
 
-#define STOP SetLastError(ERROR_CANCELLED); return FALSE
+#define STOP() { SetLastError(ERROR_CANCELLED); return FALSE; }
 
 namespace Hydr10n {
 	namespace File {
@@ -43,22 +43,22 @@ namespace Hydr10n {
 					do {
 						if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 							if (enterDirectoryEventHandler != nullptr && !enterDirectoryEventHandler(str, findData, lpParam))
-								STOP;
+								STOP();
 
 							if (!IsCurrentOrParentDirectory(findData.cFileName)) {
 								wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls%ls\\", str, findData.cFileName);
 
 								if (!FindFiles(FindFiles, dwDepth + 1, errorOccuredEventHandler, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
-									STOP;
+									STOP();
 
 								str[strLen] = 0;
 							}
 
 							if (leaveDirectoryEventHandler != nullptr && !leaveDirectoryEventHandler(str, findData, lpParam))
-								STOP;
+								STOP();
 						}
 						else if (fileFoundEventHandler != nullptr && !fileFoundEventHandler(str, findData, lpParam))
-							STOP;
+							STOP();
 					} while (FindNextFileW(wrapper.Handle, &findData));
 
 					if (GetLastError() == ERROR_NO_MORE_FILES) {
@@ -68,7 +68,7 @@ namespace Hydr10n {
 					}
 				}
 				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
-					STOP;
+					STOP();
 
 				return dwDepth ? TRUE : FALSE;
 			};
