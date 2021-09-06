@@ -67,10 +67,12 @@ namespace Hydr10n {
 						return TRUE;
 					}
 				}
+				else if (!dwDepth)
+					return FALSE;
 				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
 					STOP();
 
-				return dwDepth ? TRUE : FALSE;
+				return TRUE;
 			};
 
 			(void)lstrcpynW(str, lpPath, UNICODE_STRING_MAX_CHARS);
