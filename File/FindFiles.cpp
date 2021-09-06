@@ -61,16 +61,12 @@ namespace Hydr10n {
 							STOP();
 					} while (FindNextFileW(wrapper.Handle, &findData));
 
-					if (GetLastError() == ERROR_NO_MORE_FILES) {
+					if (GetLastError() == ERROR_NO_MORE_FILES)
 						SetLastError(ERROR_SUCCESS);
-
-						return TRUE;
-					}
 				}
 				else if (!dwDepth)
 					return FALSE;
-				
-				if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
+				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
 					STOP();
 
 				return TRUE;
