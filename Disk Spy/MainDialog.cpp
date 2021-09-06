@@ -297,9 +297,14 @@ void StartCopying(CopyDataParamEx& param) {
 					SYSTEMTIME localTime;
 					GetLocalTime(&localTime);
 					wsprintfW(szLogPath, L"%ls%hu-%02hu-%02hu %02hu-%02hu-%02hu.log", szLogPath, localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond);
-					if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_READONLY, nullptr)) != INVALID_HANDLE_VALUE) {
+					if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)) != INVALID_HANDLE_VALUE) {
 						auto& statistics = param->Statistics;
 						statistics = {};
+						param->DataPath = szDataPath;
+						param->SkipCurrentFile = FALSE;
+						param->Time = { GetTickCount64() };
+
+						param->State = State::Running;
 
 						WCHAR szLogData[120];
 
@@ -308,24 +313,19 @@ void StartCopying(CopyDataParamEx& param) {
 						WriteFile(param->hLogFile, "\xff\xfe", 2, &dwNumberOfBytesWritten, nullptr);
 						WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"Drive %ls\r\n", szDriveID), &dwNumberOfBytesWritten, nullptr);
 
-						param->DataPath = szDataPath;
-						param->SkipCurrentFile = FALSE;
-						param->Time = { GetTickCount64() };
-						param->State = State::Running;
-
-						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
+						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), nullptr, OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
 
 						WCHAR szByteSize[20] = L"0 KB";
 						StrFormatByteSizeEx(statistics.SizeCopied, SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS, szByteSize, ARRAYSIZE(szByteSize));
 
 						WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"\r\nSuccessfully created %lu %ls, copied %lu %ls (%ls)", statistics.DirCreatedCount, statistics.DirCreatedCount == 1 ? L"directory" : L"directories", statistics.FileCopiedCount, statistics.FileCopiedCount == 1 ? L"file" : L"files", szByteSize), &dwNumberOfBytesWritten, nullptr);
 
-						param->State = State::Stopped;
-
 						CloseHandle(param->hLogFile);
 
 						if (!statistics.DirCreatedCount && !statistics.FileCopiedCount)
 							DeleteFileW(szLogPath);
+
+						param->State = State::Stopped;
 					}
 
 					UnregisterDeviceNotification(devBroadcastHandle.dbch_hdevnotify);
