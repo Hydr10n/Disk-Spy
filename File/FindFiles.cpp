@@ -69,7 +69,8 @@ namespace Hydr10n {
 				}
 				else if (!dwDepth)
 					return FALSE;
-				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
+				
+				if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
 					STOP();
 
 				return TRUE;
