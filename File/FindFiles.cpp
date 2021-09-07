@@ -49,7 +49,7 @@ namespace Hydr10n {
 								wnsprintfW(str, UNICODE_STRING_MAX_CHARS, L"%ls%ls\\", str, findData.cFileName);
 
 								if (!FindFiles(FindFiles, dwDepth + 1, errorOccuredEventHandler, fileFoundEventHandler, enterDirectoryEventHandler, leaveDirectoryEventHandler, lpParam))
-									STOP();
+									return FALSE;
 
 								str[strLen] = 0;
 							}
