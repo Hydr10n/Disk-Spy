@@ -39,7 +39,8 @@ namespace Hydr10n {
 
 				str[strLen] = 0;
 
-				if (wrapper.Handle != INVALID_HANDLE_VALUE) {
+				BOOL ret = wrapper.Handle != INVALID_HANDLE_VALUE;
+				if (ret) {
 					do {
 						if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 							if (enterDirectoryEventHandler != nullptr && !enterDirectoryEventHandler(str, findData, lpParam))
@@ -63,15 +64,14 @@ namespace Hydr10n {
 
 					if (GetLastError() == ERROR_NO_MORE_FILES)
 						SetLastError(ERROR_SUCCESS);
-				}
-				else {
-					if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam) && dwDepth)
-						STOP();
-
-					return FALSE;
+					else
+						ret = FALSE;
 				}
 
-				return TRUE;
+				if (!ret && errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam) && dwDepth)
+					STOP();
+
+				return ret;
 			};
 
 			(void)lstrcpynW(str, lpPath, UNICODE_STRING_MAX_CHARS);
