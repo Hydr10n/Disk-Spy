@@ -1,6 +1,6 @@
 /*
  * Header File: FindFiles.cpp
- * Last Update: 2021/09/06
+ * Last Update: 2021/09/07
  *
  * Copyright (C) Hydr10n@GitHub. All Rights Reserved.
  */
@@ -64,10 +64,12 @@ namespace Hydr10n {
 					if (GetLastError() == ERROR_NO_MORE_FILES)
 						SetLastError(ERROR_SUCCESS);
 				}
-				else if (!dwDepth)
+				else {
+					if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam) && dwDepth)
+						STOP();
+
 					return FALSE;
-				else if (errorOccuredEventHandler != nullptr && !errorOccuredEventHandler(lpPath, lpParam))
-					STOP();
+				}
 
 				return TRUE;
 			};
