@@ -33,5 +33,5 @@ int Main()
 			DispatchMessage(&msg);
 		}
 
-	return static_cast<int>(msg.wParam);
+	ExitProcess(static_cast<UINT>(msg.wParam));
 }

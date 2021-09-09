@@ -310,7 +310,8 @@ void StartCopying(CopyDataParamEx& param) {
 
 						DWORD dwNumberOfBytesWritten;
 
-						WriteFile(param->hLogFile, "\xff\xfe", 2, &dwNumberOfBytesWritten, nullptr);
+						constexpr WCHAR BOM = 0xfeff;
+						WriteFile(param->hLogFile, &BOM, sizeof(BOM), &dwNumberOfBytesWritten, nullptr);
 						WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"Drive %ls\r\n", szDriveID), &dwNumberOfBytesWritten, nullptr);
 
 						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), nullptr, OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
@@ -536,9 +537,7 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 	case static_cast<UINT>(MyWindowMessage::SetTextW): {
 		const auto text = reinterpret_cast<LPWSTR>(lParam);
-
 		SetWindowTextW(reinterpret_cast<HWND>(wParam), text);
-
 		LocalFree(text);
 	}	break;
 
