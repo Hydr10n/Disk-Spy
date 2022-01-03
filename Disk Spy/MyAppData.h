@@ -42,7 +42,7 @@ struct MyAppData {
 
 		FilterData() {
 			constexpr WCHAR szFileName[] = L"Filter.ini";
-			std::unique_ptr<WCHAR> exePath(new WCHAR[UNICODE_STRING_MAX_CHARS + ARRAYSIZE(szFileName) - 1]);
+			const std::unique_ptr<WCHAR> exePath(new WCHAR[UNICODE_STRING_MAX_CHARS + ARRAYSIZE(szFileName) - 1]);
 			if (exePath != nullptr && GetModuleFileNameW(nullptr, exePath.get(), UNICODE_STRING_MAX_CHARS)) {
 				PathRemoveFileSpecW(exePath.get());
 				PathAppendW(exePath.get(), szFileName);
@@ -118,10 +118,9 @@ struct MyAppData {
 						return FALSE;
 					};
 
-					int i{};
+					UINT i = 0;
 					for (const auto ch : szDrives) {
-						if (!ch)
-							break;
+						if (!ch) break;
 
 						if (ch != ';') {
 							if (i >= ARRAYSIZE(szDrive) - 1) {
@@ -134,15 +133,13 @@ struct MyAppData {
 							szDrive[i] = 0;
 						}
 						else if (i) {
-							if (!ConvertString())
-								return FALSE;
+							if (!ConvertString()) return FALSE;
 
 							i = 0;
 						}
 					}
 
-					if (i && !ConvertString())
-						return FALSE;
+					if (i && !ConvertString()) return FALSE;
 
 					return TRUE;
 				}

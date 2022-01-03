@@ -23,15 +23,14 @@ int Main()
 
 	int argc;
 	const auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-	if (argv != nullptr && lstrcmpW(argv[1], Args.Background))
-		ShowWindow(dialog, SW_SHOW);
+	if (argv != nullptr && lstrcmpW(argv[1], Args.Background)) ShowWindow(dialog, SW_SHOW);
 
 	MSG msg;
-	while (GetMessage(&msg, nullptr, 0, 0))
+	while (GetMessage(&msg, nullptr, 0, 0)) {
 		if (!IsDialogMessage(dialog, &msg)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
-
+	}
 	ExitProcess(static_cast<UINT>(msg.wParam));
 }

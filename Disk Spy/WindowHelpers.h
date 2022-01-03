@@ -17,11 +17,9 @@ namespace WindowHelpers {
 			RECT border, rect;
 			if (GetWindowRect(parent, &border) && GetWindowRect(hWnd, &rect)) {
 				CenterRect(border, rect);
-
 				return SetWindowPos(hWnd, nullptr, static_cast<int>(rect.left), static_cast<int>(rect.top), 0, 0, SWP_NOSIZE);
 			}
 		}
-
 		return FALSE;
 	}
 }

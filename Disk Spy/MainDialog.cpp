@@ -25,10 +25,10 @@ using namespace std;
 
 enum class State { Stopped, Running, Paused };
 
-enum class MyWindowMessage { SetTextW = WM_USER + 1 };
+enum class MyWindowMessage { SetTextW = WM_USER };
 
 union Windows {
-	struct { HWND hButtonStartCopying, hButtonStopCopying, hButtonSkipCurrentFile, hProgressCopiedData, hEditDir, hEditFile; };
+	struct { HWND ButtonStartCopying, ButtonStopCopying, ButtonSkipCurrentFile, ProgressCopiedData, EditDir, EditFile; };
 	HWND Array[6];
 };
 
@@ -73,9 +73,9 @@ DWORD64 GetFilterMaxFileSize() {
 
 	DWORD64 dw64MaxFileSize = g_myAppData->Filter.CopyLimits.MaxFileSize;
 	switch (g_myAppData->Filter.CopyLimits.FileSizeUnit) {
+	case FileSizeUnit::GB: dw64MaxFileSize <<= 10; [[fallthrough]];
+	case FileSizeUnit::MB: dw64MaxFileSize <<= 10; [[fallthrough]];
 	case FileSizeUnit::KB: dw64MaxFileSize <<= 10; break;
-	case FileSizeUnit::MB: dw64MaxFileSize <<= 20; break;
-	case FileSizeUnit::GB: dw64MaxFileSize <<= 30; break;
 	}
 	return dw64MaxFileSize;
 }
@@ -85,8 +85,8 @@ DWORD64 GetFilterMaxDuration() {
 
 	DWORD64 dw64MaxDuration = g_myAppData->Filter.CopyLimits.MaxDuration;
 	switch (g_myAppData->Filter.CopyLimits.TimeUnit) {
+	case TimeUnit::Min: dw64MaxDuration *= 60; [[fallthrough]];
 	case TimeUnit::Sec: dw64MaxDuration *= 1000; break;
-	case TimeUnit::Min: dw64MaxDuration *= 1000 * 60; break;
 	}
 	return dw64MaxDuration;
 }
@@ -127,9 +127,9 @@ bool DetermineState(CopyDataParam& param) {
 	param.Time.PauseDuration += timeNow - timePaused;
 
 	const auto maxDuration = GetFilterMaxDuration();
-	if ((maxDuration && timeNow - param.Time.Start - param.Time.PauseDuration > maxDuration)
-		|| param.State == State::Stopped)
+	if ((maxDuration && timeNow - param.Time.Start - param.Time.PauseDuration > maxDuration) || param.State == State::Stopped) {
 		return false;
+	}
 
 	return true;
 }
@@ -137,17 +137,17 @@ bool DetermineState(CopyDataParam& param) {
 DWORD CALLBACK CopyProgressRoutine(LARGE_INTEGER TotalFileSize, LARGE_INTEGER TotalBytesTransferred, LARGE_INTEGER StreamSize, LARGE_INTEGER StreamBytesTransferred, DWORD dwStreamNumber, DWORD dwCallbackReason, HANDLE hSourceFile, HANDLE hDestinationFile, LPVOID lpData) {
 	const auto param = reinterpret_cast<CopyDataParam*>(lpData);
 
-	if (!DetermineState(*param))
-		return PROGRESS_CANCEL;
+	if (!DetermineState(*param)) return PROGRESS_CANCEL;
 
-	PSTMSG(param->Windows.hProgressCopiedData, PBM_SETPOS, static_cast<WPARAM>(TotalFileSize.QuadPart ? 100 * TotalBytesTransferred.QuadPart / TotalFileSize.QuadPart : 0), 0);
+	PSTMSG(param->Windows.ProgressCopiedData, PBM_SETPOS, static_cast<WPARAM>(TotalFileSize.QuadPart ? 100 * TotalBytesTransferred.QuadPart / TotalFileSize.QuadPart : 0), 0);
 
 	if (TotalBytesTransferred.QuadPart == TotalFileSize.QuadPart) {
 		param->Statistics.SizeCopied += static_cast<DWORD64>(TotalFileSize.QuadPart);
 
 		FILETIME creationTime, lastAccessTime, lastWriteTime;
-		if (GetFileTime(hSourceFile, &creationTime, &lastAccessTime, &lastWriteTime))
+		if (GetFileTime(hSourceFile, &creationTime, &lastAccessTime, &lastWriteTime)) {
 			SetFileTime(hDestinationFile, &creationTime, &lastAccessTime, &lastWriteTime);
+		}
 	}
 
 	return PROGRESS_CONTINUE;
@@ -160,11 +160,10 @@ BOOL CALLBACK OnEnteringDirectory(LPCWSTR lpPath, const WIN32_FIND_DATAW& findDa
 		constexpr auto StrLen = UNICODE_STRING_MAX_CHARS + 30;
 		const unique_ptr<WCHAR> buf(new WCHAR[StrLen]);
 		const auto str = buf.get();
-		if (str == nullptr)
-			return FALSE;
+		if (str == nullptr) return FALSE;
 
 		wnsprintfW(str, StrLen, L"%ls%ls\\\r\n->\r\n%ls", lpPath + 4, findData.cFileName, param->DataPath + 4);
-		MySetWindowText(param->Windows.hEditDir, str);
+		MySetWindowText(param->Windows.EditDir, str);
 
 		DWORD dwNumberOfBytesWritten;
 		WriteFile(param->hLogFile, str, sizeof(*str) * wnsprintfW(str, StrLen, L"\r\n%ls%ls\\", PathSkipRootW(lpPath), findData.cFileName), &dwNumberOfBytesWritten, nullptr);
@@ -195,8 +194,7 @@ BOOL CALLBACK OnLeavingDirectory(LPCWSTR lpPath, const WIN32_FIND_DATAW& findDat
 		constexpr auto StrLen = UNICODE_STRING_MAX_CHARS;
 		const unique_ptr<WCHAR> buf(new WCHAR[StrLen]);
 		const auto str = buf.get();
-		if (str == nullptr)
-			return FALSE;
+		if (str == nullptr) return FALSE;
 
 		wnsprintfW(str, StrLen, L"%ls%ls%ls", param->DataPath, PathSkipRootW(lpPath), findData.cFileName);
 
@@ -209,14 +207,12 @@ BOOL CALLBACK OnLeavingDirectory(LPCWSTR lpPath, const WIN32_FIND_DATAW& findDat
 BOOL CALLBACK OnFileFound(LPCWSTR lpPath, const WIN32_FIND_DATAW& findData, LPVOID lpParam) {
 	const auto param = reinterpret_cast<CopyDataParam*>(lpParam);
 
-	if (!DetermineState(*param))
-		return FALSE;
+	if (!DetermineState(*param)) return FALSE;
 
 	constexpr auto StrLen = UNICODE_STRING_MAX_CHARS;
 	const unique_ptr<WCHAR> buf(new WCHAR[StrLen]);
 	const auto str = buf.get();
-	if (str == nullptr)
-		return FALSE;
+	if (str == nullptr) return FALSE;
 
 	wnsprintfW(str, StrLen, L"%ls%ls%ls", param->DataPath, PathSkipRootW(lpPath), findData.cFileName);
 
@@ -226,14 +222,13 @@ BOOL CALLBACK OnFileFound(LPCWSTR lpPath, const WIN32_FIND_DATAW& findData, LPVO
 		constexpr auto StrLen2 = UNICODE_STRING_MAX_CHARS;
 		const unique_ptr<WCHAR> buf2(new WCHAR[StrLen2]);
 		const auto str2 = buf2.get();
-		if (str2 == nullptr)
-			return FALSE;
+		if (str2 == nullptr) return FALSE;
 
 		WCHAR szByteSize[20] = L"0 KB";
 		StrFormatByteSizeEx(ULARGE_INTEGER{ findData.nFileSizeLow, findData.nFileSizeHigh }.QuadPart, SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS, szByteSize, ARRAYSIZE(szByteSize));
 
 		wnsprintfW(str2, StrLen2, L"%ls\r\n(%ls)", findData.cFileName, szByteSize);
-		MySetWindowText(param->Windows.hEditFile, str2);
+		MySetWindowText(param->Windows.EditFile, str2);
 
 		DWORD dwNumberOfBytesWritten;
 
@@ -266,113 +261,114 @@ BOOL CALLBACK OnFileFound(LPCWSTR lpPath, const WIN32_FIND_DATAW& findData, LPVO
 }
 
 void StartCopying(CopyDataParamEx& param) {
-	if (param.hThread == nullptr && (param.hThread = CreateThread(nullptr, 0, [](LPVOID lpParam) -> DWORD {
-		const auto param = reinterpret_cast<CopyDataParam*>(lpParam);
+	if (param.hThread == nullptr && (param.hThread = CreateThread(nullptr, 0,
+		[](LPVOID lpParam) -> DWORD {
+			const auto param = reinterpret_cast<CopyDataParam*>(lpParam);
 
-		const auto driveLetter = static_cast<WCHAR>('A' + param->DriveInfo.Number);
+			const auto driveLetter = static_cast<WCHAR>('A' + param->DriveInfo.Number);
 
-		if (driveLetter == *g_localDataPath)
-			return ERROR_BAD_ARGUMENTS;
+			if (driveLetter == *g_localDataPath) return ERROR_BAD_ARGUMENTS;
 
-		if (param->DriveInfo.ID) {
-			auto& devBroadcastHandle = param->DevBroadcastHandle;
-			devBroadcastHandle = { sizeof(devBroadcastHandle), DBT_DEVTYP_HANDLE };
-			if ((devBroadcastHandle.dbch_handle = CreateFileW(initializer_list<WCHAR>({ '\\', '\\', '.', '\\', driveLetter, ':', 0 }).begin(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr)) != INVALID_HANDLE_VALUE) {
-				if ((devBroadcastHandle.dbch_hdevnotify = RegisterDeviceNotification(g_hDlg, &devBroadcastHandle, DEVICE_NOTIFY_WINDOW_HANDLE)) != nullptr) {
-					WCHAR szDriveID[11];
-					wsprintfW(szDriveID, L"0x%lX", param->DriveInfo.ID);
+			if (param->DriveInfo.ID) {
+				auto& devBroadcastHandle = param->DevBroadcastHandle;
+				devBroadcastHandle = { sizeof(devBroadcastHandle), DBT_DEVTYP_HANDLE };
+				if ((devBroadcastHandle.dbch_handle = CreateFileW(initializer_list<WCHAR>({ '\\', '\\', '.', '\\', driveLetter, ':', 0 }).begin(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr)) != INVALID_HANDLE_VALUE) {
+					if ((devBroadcastHandle.dbch_hdevnotify = RegisterDeviceNotification(g_hDlg, &devBroadcastHandle, DEVICE_NOTIFY_WINDOW_HANDLE)) != nullptr) {
+						WCHAR szDriveID[11];
+						wsprintfW(szDriveID, L"0x%lX", param->DriveInfo.ID);
 
-					WCHAR szDataPath[40], szLogPath[60];
-					wsprintfW(szDataPath, LR"(\\?\%ls%ls\)", g_localDataPath, szDriveID);
-					lstrcpyW(szLogPath, szDataPath);
+						WCHAR szDataPath[40], szLogPath[60];
+						wsprintfW(szDataPath, LR"(\\?\%ls%ls\)", g_localDataPath, szDriveID);
+						lstrcpyW(szLogPath, szDataPath);
 
-					lstrcatW(szDataPath, LR"(Data\)");
-					SHCreateDirectory(nullptr, szDataPath);
+						lstrcatW(szDataPath, LR"(Data\)");
+						SHCreateDirectory(nullptr, szDataPath);
 
-					lstrcatW(szLogPath, LR"(Logs\)");
-					SHCreateDirectory(nullptr, szLogPath);
+						lstrcatW(szLogPath, LR"(Logs\)");
+						SHCreateDirectory(nullptr, szLogPath);
 
-					SetFileAttributesW(g_localDataPath, FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
+						SetFileAttributesW(g_localDataPath, FILE_ATTRIBUTE_SYSTEM | FILE_ATTRIBUTE_HIDDEN);
 
-					SYSTEMTIME localTime;
-					GetLocalTime(&localTime);
-					wsprintfW(szLogPath, L"%ls%hu-%02hu-%02hu %02hu-%02hu-%02hu.log", szLogPath, localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond);
-					if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)) != INVALID_HANDLE_VALUE) {
-						auto& statistics = param->Statistics;
-						statistics = {};
-						param->DataPath = szDataPath;
-						param->SkipCurrentFile = FALSE;
-						param->Time = { GetTickCount64() };
+						SYSTEMTIME localTime;
+						GetLocalTime(&localTime);
+						wsprintfW(szLogPath, L"%ls%hu-%02hu-%02hu %02hu-%02hu-%02hu.log", szLogPath, localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond);
+						if ((param->hLogFile = CreateFileW(szLogPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)) != INVALID_HANDLE_VALUE) {
+							auto& statistics = param->Statistics;
+							statistics = {};
+							param->DataPath = szDataPath;
+							param->SkipCurrentFile = FALSE;
+							param->Time = { GetTickCount64() };
 
-						param->State = State::Running;
+							param->State = State::Running;
 
-						WCHAR szLogData[120];
+							WCHAR szLogData[120];
 
-						DWORD dwNumberOfBytesWritten;
+							DWORD dwNumberOfBytesWritten;
 
-						constexpr WCHAR BOM = 0xfeff;
-						WriteFile(param->hLogFile, &BOM, sizeof(BOM), &dwNumberOfBytesWritten, nullptr);
-						WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"Drive %ls\r\n", szDriveID), &dwNumberOfBytesWritten, nullptr);
+							constexpr WCHAR BOM = 0xfeff;
+							WriteFile(param->hLogFile, &BOM, sizeof(BOM), &dwNumberOfBytesWritten, nullptr);
+							WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"Drive %ls\r\n", szDriveID), &dwNumberOfBytesWritten, nullptr);
 
-						FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), nullptr, OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
+							FindFiles(initializer_list<WCHAR>({ '\\', '\\', '?', '\\', driveLetter, ':', '\\', 0 }).begin(), nullptr, OnFileFound, OnEnteringDirectory, OnLeavingDirectory, lpParam);
 
-						WCHAR szByteSize[20] = L"0 KB";
-						StrFormatByteSizeEx(statistics.SizeCopied, SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS, szByteSize, ARRAYSIZE(szByteSize));
+							WCHAR szByteSize[20] = L"0 KB";
+							StrFormatByteSizeEx(statistics.SizeCopied, SFBS_FLAGS_TRUNCATE_UNDISPLAYED_DECIMAL_DIGITS, szByteSize, ARRAYSIZE(szByteSize));
 
-						WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"\r\nSuccessfully created %lu %ls, copied %lu %ls (%ls)", statistics.DirCreatedCount, statistics.DirCreatedCount == 1 ? L"directory" : L"directories", statistics.FileCopiedCount, statistics.FileCopiedCount == 1 ? L"file" : L"files", szByteSize), &dwNumberOfBytesWritten, nullptr);
+							WriteFile(param->hLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, L"\r\nSuccessfully created %lu %ls, copied %lu %ls (%ls)", statistics.DirCreatedCount, statistics.DirCreatedCount == 1 ? L"directory" : L"directories", statistics.FileCopiedCount, statistics.FileCopiedCount == 1 ? L"file" : L"files", szByteSize), &dwNumberOfBytesWritten, nullptr);
 
-						CloseHandle(param->hLogFile);
+							CloseHandle(param->hLogFile);
 
-						if (!statistics.DirCreatedCount && !statistics.FileCopiedCount)
-							DeleteFileW(szLogPath);
+							if (!statistics.DirCreatedCount && !statistics.FileCopiedCount) DeleteFileW(szLogPath);
 
-						param->State = State::Stopped;
+							param->State = State::Stopped;
+						}
+
+						UnregisterDeviceNotification(devBroadcastHandle.dbch_hdevnotify);
 					}
 
-					UnregisterDeviceNotification(devBroadcastHandle.dbch_hdevnotify);
+					CloseHandle(devBroadcastHandle.dbch_handle);
 				}
-
-				CloseHandle(devBroadcastHandle.dbch_handle);
 			}
-		}
-
-		return ERROR_SUCCESS;
-		}, &param, CREATE_SUSPENDED, nullptr)) != nullptr) {
-		const HANDLE hThread = CreateThread(nullptr, 0, [](LPVOID lpParam) -> DWORD {
-			const auto param = reinterpret_cast<CopyDataParamEx*>(lpParam);
-
-			const auto& windows = param->Windows;
-
-			SetWindowLongPtr(windows.hButtonStartCopying, GWLP_ID, IDC_BUTTON_PAUSE_COPYING);
-
-			EnableWindow(windows.hButtonStopCopying, TRUE);
-
-			EnableWindow(windows.hButtonSkipCurrentFile, TRUE);
-
-			WaitForSingleObject(param->hThread, INFINITE);
-			CloseHandle(param->hThread);
-			param->hThread = nullptr;
-
-			SetWindowLongPtr(windows.hButtonStartCopying, GWLP_ID, IDC_BUTTON_START_COPYING);
-
-			EnableWindow(windows.hButtonStopCopying, FALSE);
-
-			EnableWindow(windows.hButtonSkipCurrentFile, FALSE);
-
-			PSTMSG(windows.hProgressCopiedData, PBM_SETSTATE, PBST_NORMAL, 0);
-			PSTMSG(windows.hProgressCopiedData, PBM_SETPOS, 100, 0);
-
-			SetWindowTextW(windows.hEditDir, L"[Directory: Completed]");
-
-			SetWindowTextW(windows.hEditFile, L"[File: Completed]");
 
 			return ERROR_SUCCESS;
+		}, &param, CREATE_SUSPENDED, nullptr)) != nullptr) {
+		const auto thread = CreateThread(nullptr, 0,
+			[](LPVOID lpParam) -> DWORD {
+				const auto param = reinterpret_cast<CopyDataParamEx*>(lpParam);
+
+				const auto& windows = param->Windows;
+
+				SetWindowLongPtr(windows.ButtonStartCopying, GWLP_ID, IDC_BUTTON_PAUSE_COPYING);
+
+				EnableWindow(windows.ButtonStopCopying, TRUE);
+
+				EnableWindow(windows.ButtonSkipCurrentFile, TRUE);
+
+				WaitForSingleObject(param->hThread, INFINITE);
+				CloseHandle(param->hThread);
+				param->hThread = nullptr;
+
+				SetWindowLongPtr(windows.ButtonStartCopying, GWLP_ID, IDC_BUTTON_START_COPYING);
+
+				EnableWindow(windows.ButtonStopCopying, FALSE);
+
+				EnableWindow(windows.ButtonSkipCurrentFile, FALSE);
+
+				PSTMSG(windows.ProgressCopiedData, PBM_SETSTATE, PBST_NORMAL, 0);
+				PSTMSG(windows.ProgressCopiedData, PBM_SETPOS, 100, 0);
+
+				SetWindowTextW(windows.EditDir, L"[Directory: Completed]");
+
+				SetWindowTextW(windows.EditFile, L"[File: Completed]");
+
+				return ERROR_SUCCESS;
 			}, &param, 0, nullptr);
-		if (hThread == nullptr)
+		if (thread == nullptr) {
 #pragma warning(suppress: 6258)
 			TerminateThread(param.hThread, GetLastError());
+		}
 		else {
-			CloseHandle(hThread);
+			CloseHandle(thread);
 
 			ResumeThread(param.hThread);
 		}
@@ -384,11 +380,11 @@ void ResumeCopying(CopyDataParamEx& param) {
 
 	const auto& windows = param.Windows;
 
-	SetWindowLongPtr(windows.hButtonStartCopying, GWLP_ID, IDC_BUTTON_PAUSE_COPYING);
+	SetWindowLongPtr(windows.ButtonStartCopying, GWLP_ID, IDC_BUTTON_PAUSE_COPYING);
 
-	EnableWindow(windows.hButtonSkipCurrentFile, TRUE);
+	EnableWindow(windows.ButtonSkipCurrentFile, TRUE);
 
-	PSTMSG(windows.hProgressCopiedData, PBM_SETSTATE, PBST_NORMAL, 0);
+	PSTMSG(windows.ProgressCopiedData, PBM_SETSTATE, PBST_NORMAL, 0);
 }
 
 void PauseCopying(CopyDataParamEx& param) {
@@ -396,11 +392,11 @@ void PauseCopying(CopyDataParamEx& param) {
 
 	const auto& windows = param.Windows;
 
-	SetWindowLongPtr(windows.hButtonStartCopying, GWLP_ID, IDC_BUTTON_RESUME_COPYING);
+	SetWindowLongPtr(windows.ButtonStartCopying, GWLP_ID, IDC_BUTTON_RESUME_COPYING);
 
-	EnableWindow(windows.hButtonSkipCurrentFile, FALSE);
+	EnableWindow(windows.ButtonSkipCurrentFile, FALSE);
 
-	PSTMSG(windows.hProgressCopiedData, PBM_SETSTATE, PBST_PAUSED, 0);
+	PSTMSG(windows.ProgressCopiedData, PBM_SETSTATE, PBST_PAUSED, 0);
 }
 
 void StopCopying(CopyDataParamEx& param) {
@@ -414,9 +410,9 @@ void AddTooltips(const Windows& windows) {
 		HWND hWnd;
 		LPCWSTR Text;
 	} tooltipData[]{
-		{ windows.hButtonStartCopying, L"Start/pause copying" },
-		{ windows.hButtonStopCopying, L"Stop copying" },
-		{ windows.hButtonSkipCurrentFile, L"Skip current file" }
+		{ windows.ButtonStartCopying, L"Start/pause copying" },
+		{ windows.ButtonStopCopying, L"Stop copying" },
+		{ windows.ButtonSkipCurrentFile, L"Skip current file" }
 	};
 	for (const auto data : tooltipData) {
 		const auto tooltip = CreateWindowW(TOOLTIPS_CLASSW, nullptr, WS_POPUP, 0, 0, 0, 0, g_hDlg, nullptr, GetWindowInstance(data.hWnd), nullptr);
@@ -432,7 +428,7 @@ void AddTooltips(const Windows& windows) {
 }
 
 void DuplicateWindows(const Windows& source, Windows& destination) {
-	for (int i = 0; i < ARRAYSIZE(source.Array); i++) {
+	for (UINT i = 0; i < ARRAYSIZE(source.Array); i++) {
 		const auto window = source.Array[i];
 
 		TCHAR szClassName[20], szWindowText[20];
@@ -450,7 +446,7 @@ void DuplicateWindows(const Windows& source, Windows& destination) {
 		SetWindowFont(destination.Array[i], GetWindowFont(window), FALSE);
 	}
 
-	EnableWindow(destination.hButtonStartCopying, TRUE);
+	EnableWindow(destination.ButtonStartCopying, TRUE);
 
 	AddTooltips(destination);
 }
@@ -475,59 +471,61 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 		if (!g_myAppData->Filter.Load()) {
 			const auto lastError = GetLastError();
-			if (lastError == ERROR_FILE_NOT_FOUND || lastError == ERROR_INVALID_DATA)
-				g_myAppData->Filter.Save();
+			if (lastError == ERROR_FILE_NOT_FOUND || lastError == ERROR_INVALID_DATA) g_myAppData->Filter.Save();
 		}
 
 		s_selectedDriveNumber = PathGetDriveNumberW(s_exePath);
 
-		*g_localDataPath = 'A' + s_selectedDriveNumber;
+		*g_localDataPath = static_cast<WCHAR>('A' + s_selectedDriveNumber);
 
 		g_hDlg = hDlg;
 
 		auto& windows = s_copyDataParamEx[s_selectedDriveNumber].Windows;
 
-		windows.hButtonStartCopying = GetDlgItem(hDlg, IDC_BUTTON_START_COPYING);
-		windows.hButtonStopCopying = GetDlgItem(hDlg, IDC_BUTTON_STOP_COPYING);
-		windows.hButtonSkipCurrentFile = GetDlgItem(hDlg, IDC_BUTTON_SKIP_CURRENT_FILE);
-		windows.hProgressCopiedData = GetDlgItem(hDlg, IDC_PROGRESS_COPIED_DATA);
+		windows.ButtonStartCopying = GetDlgItem(hDlg, IDC_BUTTON_START_COPYING);
+		windows.ButtonStopCopying = GetDlgItem(hDlg, IDC_BUTTON_STOP_COPYING);
+		windows.ButtonSkipCurrentFile = GetDlgItem(hDlg, IDC_BUTTON_SKIP_CURRENT_FILE);
+		windows.ProgressCopiedData = GetDlgItem(hDlg, IDC_PROGRESS_COPIED_DATA);
 
-		windows.hEditDir = GetDlgItem(hDlg, IDC_EDIT_DIR);
-		windows.hEditFile = GetDlgItem(hDlg, IDC_EDIT_FILE);
+		windows.EditDir = GetDlgItem(hDlg, IDC_EDIT_DIR);
+		windows.EditFile = GetDlgItem(hDlg, IDC_EDIT_FILE);
 		LOGFONT logFont;
 		if (GetObject(GetWindowFont(hDlg), sizeof(logFont), &logFont)) {
 			logFont.lfHeight = logFont.lfHeight * 13 / 16;
 			if ((s_hFont = CreateFontIndirect(&logFont)) != nullptr) {
-				SetWindowFont(windows.hEditDir, s_hFont, FALSE);
-				SetWindowFont(windows.hEditFile, s_hFont, FALSE);
+				SetWindowFont(windows.EditDir, s_hFont, FALSE);
+				SetWindowFont(windows.EditFile, s_hFont, FALSE);
 			}
 		}
-		SetWindowTextW(windows.hEditDir, L"[Directory: N/A]");
-		SetWindowTextW(windows.hEditFile, L"[File: N/A]");
+		SetWindowTextW(windows.EditDir, L"[Directory: N/A]");
+		SetWindowTextW(windows.EditFile, L"[File: N/A]");
 
 		AddTooltips(windows);
 
 		const auto comboDrives = GetDlgItem(hDlg, IDC_COMBO_DRIVES);
-		int selectedIndex;
-		for (int i = 0; i < ARRAYSIZE(s_copyDataParamEx); i++) {
+		int selectedIndex = CB_ERR;
+		for (auto i = 0; i < static_cast<int>(ARRAYSIZE(s_copyDataParamEx)); i++) {
 			s_copyDataParamEx[i].DriveInfo = { i, GenerateDriveID(i) };
 
 			const auto driveLetter = static_cast<TCHAR>('A' + i);
 
 			int index = CB_ERR;
-			if (i == s_selectedDriveNumber)
+			if (i == s_selectedDriveNumber) {
 				selectedIndex = index = ComboBox_AddString(comboDrives, initializer_list<TCHAR>({ driveLetter, ':', ' ', '*', 0 }).begin());
+			}
 			else {
 				const TCHAR szDrive[]{ driveLetter, ':', 0 };
-				if (GetDiskFreeSpaceEx(szDrive, nullptr, nullptr, nullptr))
+				if (GetDiskFreeSpaceEx(szDrive, nullptr, nullptr, nullptr)) {
 					index = ComboBox_AddString(comboDrives, szDrive);
+				}
 			}
 
 			if (index != CB_ERR) {
 				ComboBox_SetItemData(comboDrives, index, i);
 
-				if (i != s_selectedDriveNumber)
+				if (i != s_selectedDriveNumber) {
 					DuplicateWindows(s_copyDataParamEx[s_selectedDriveNumber].Windows, s_copyDataParamEx[i].Windows);
+				}
 			}
 		}
 		ComboBox_SetCurSel(comboDrives, selectedIndex);
@@ -578,8 +576,9 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 		case ID_OPTIONS_RUN_AT_STARTUP: {
 			const auto menu = GetMenu(hDlg);
 			const auto menuState = GetMenuState(menu, ID_OPTIONS_RUN_AT_STARTUP, MF_BYCOMMAND);
-			if (RunAtStartup(menuState == MF_CHECKED ? RegistryOperation::DeleteValue : RegistryOperation::SetValue, AppName, s_exePath, Args.Background, FALSE) == ERROR_SUCCESS)
+			if (RunAtStartup(menuState == MF_CHECKED ? RegistryOperation::DeleteValue : RegistryOperation::SetValue, AppName, s_exePath, Args.Background, FALSE) == ERROR_SUCCESS) {
 				CheckMenuItem(menu, ID_OPTIONS_RUN_AT_STARTUP, menuState == MF_CHECKED ? MF_UNCHECKED : MF_CHECKED);
+			}
 		}	break;
 
 		case ID_HELP_ABOUT: DialogBox(GetWindowInstance(hDlg), MAKEINTRESOURCE(IDD_DIALOG_ABOUT), hDlg, AboutDialogProc); break;
@@ -589,14 +588,11 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 				const auto comboDrives = reinterpret_cast<HWND>(lParam);
 
 				const auto driveNumber = static_cast<int>(ComboBox_GetItemData(comboDrives, ComboBox_GetCurSel(comboDrives)));
-				if (driveNumber == CB_ERR || s_selectedDriveNumber == driveNumber)
-					break;
+				if (driveNumber == CB_ERR || s_selectedDriveNumber == driveNumber) break;
 
-				for (const auto window : s_copyDataParamEx[driveNumber].Windows.Array)
-					ShowWindow(window, SW_SHOW);
+				for (const auto window : s_copyDataParamEx[driveNumber].Windows.Array) ShowWindow(window, SW_SHOW);
 
-				for (const auto window : s_copyDataParamEx[s_selectedDriveNumber].Windows.Array)
-					ShowWindow(window, SW_HIDE);
+				for (const auto window : s_copyDataParamEx[s_selectedDriveNumber].Windows.Array) ShowWindow(window, SW_HIDE);
 
 				s_selectedDriveNumber = driveNumber;
 			}
@@ -655,8 +651,7 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 						WriteFile(s_hHistoryLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, TIME_FORMAT L" Drive 0x%lX connected\r\n", localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond, param.DriveInfo.ID), &dwNumberOfBytesWritten, nullptr);
 
 						BOOL ret = TRUE;
-						if (driveNumber == s_selectedDriveNumber)
-							EnableWindow(param.Windows.hButtonStartCopying, TRUE);
+						if (driveNumber == s_selectedDriveNumber) EnableWindow(param.Windows.ButtonStartCopying, TRUE);
 						else {
 							const auto index = ComboBox_AddString(comboDrives, szDrive);
 							ret = index != CB_ERR && ComboBox_SetItemData(comboDrives, index, driveNumber) != CB_ERR;
@@ -665,39 +660,38 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 						if (ret) {
 							DuplicateWindows(s_copyDataParamEx[*g_localDataPath - 'A'].Windows, param.Windows);
 
-							if (IsWindowVisible(hDlg))
-								FlashWindow(hDlg, TRUE);
+							if (IsWindowVisible(hDlg)) FlashWindow(hDlg, TRUE);
 							else if (DriveType(driveNumber) != DRIVE_CDROM) {
 								const auto& whitelist = g_myAppData->Filter.Whitelist;
 
-								BOOL excluded{};
-								for (UINT i = 0; i < whitelist.DriveCount; i++)
+								BOOL excluded = FALSE;
+								for (UINT i = 0; i < whitelist.DriveCount; i++) {
 									if (whitelist.Drives[i].ID == param.DriveInfo.ID && whitelist.Drives[i].Excluded) {
 										excluded = TRUE;
 										break;
 									}
+								}
 
 								if (!excluded) {
 									WCHAR path[3 + ARRAYSIZE(whitelist.SpecialFileName)];
 									wsprintfW(path, LR"(%lc:\%ls)", static_cast<WCHAR>('A' + driveNumber), whitelist.SpecialFileName);
-									if (!PathFileExistsW(path))
-										StartCopying(param);
+									if (!PathFileExistsW(path)) StartCopying(param);
 								}
 							}
 						}
 					}
 				}
 				else {
-					if (driveNumber == s_selectedDriveNumber)
-						EnableWindow(param.Windows.hButtonStartCopying, FALSE);
+					if (driveNumber == s_selectedDriveNumber) EnableWindow(param.Windows.ButtonStartCopying, FALSE);
 					else if (param.DriveInfo.ID) {
 						ComboBox_DeleteString(comboDrives, ComboBox_FindString(comboDrives, -1, szDrive));
 
-						for (auto& window : s_copyDataParamEx[driveNumber].Windows.Array)
+						for (auto& window : s_copyDataParamEx[driveNumber].Windows.Array) {
 							if (window != nullptr) {
 								DestroyWindow(window);
 								window = nullptr;
 							}
+						}
 
 						WriteFile(s_hHistoryLogFile, szLogData, sizeof(*szLogData) * wsprintfW(szLogData, TIME_FORMAT L" Drive 0x%lX disconnected\r\n", localTime.wYear, localTime.wMonth, localTime.wDay, localTime.wHour, localTime.wMinute, localTime.wSecond, param.DriveInfo.ID), &dwNumberOfBytesWritten, nullptr);
 
@@ -708,10 +702,13 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 		}	break;
 
 		case DBT_DEVICEQUERYREMOVE: {
-			if (reinterpret_cast<PDEV_BROADCAST_HDR>(lParam)->dbch_devicetype == DBT_DEVTYP_HANDLE)
-				for (auto& param : s_copyDataParamEx)
-					if (param.DevBroadcastHandle.dbch_handle == reinterpret_cast<PDEV_BROADCAST_HANDLE>(lParam)->dbch_handle)
+			if (reinterpret_cast<PDEV_BROADCAST_HDR>(lParam)->dbch_devicetype == DBT_DEVTYP_HANDLE) {
+				for (auto& param : s_copyDataParamEx) {
+					if (param.DevBroadcastHandle.dbch_handle == reinterpret_cast<PDEV_BROADCAST_HANDLE>(lParam)->dbch_handle) {
 						StopCopying(param);
+					}
+				}
+			}
 		}	return TRUE;
 		}
 	}	break;
@@ -720,20 +717,20 @@ INT_PTR CALLBACK MainWindowProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 	case WM_CLOSE: {
 		bool running{};
-		for (const auto& param : s_copyDataParamEx)
+		for (const auto& param : s_copyDataParamEx) {
 			if (param.State == State::Running) {
 				running = true;
-
 				break;
 			}
+		}
 
-		if (!running || MessageBoxW(hDlg, L"Are you sure you want to exit?", L"Confirm", MB_ICONQUESTION | MB_YESNO) == IDYES)
+		if (!running || MessageBoxW(hDlg, L"Are you sure you want to exit?", L"Confirm", MB_ICONQUESTION | MB_YESNO) == IDYES) {
 			DestroyWindow(hDlg);
+		}
 	}	break;
 
 	case WM_DESTROY: {
-		for (auto& param : s_copyDataParamEx)
-			StopCopying(param);
+		for (auto& param : s_copyDataParamEx) StopCopying(param);
 
 		delete g_myAppData;
 

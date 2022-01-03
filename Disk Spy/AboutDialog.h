@@ -4,7 +4,7 @@
 
 #include "WindowHelpers.h"
 
-INT_PTR CALLBACK AboutDialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+inline INT_PTR CALLBACK AboutDialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	switch (uMsg) {
 	case WM_INITDIALOG: WindowHelpers::CenterWindow(hDlg); break;
 
@@ -19,8 +19,9 @@ INT_PTR CALLBACK AboutDialogProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 		switch (reinterpret_cast<LPNMHDR>(lParam)->code) {
 		case NM_CLICK:
 		case NM_RETURN: {
-			if (reinterpret_cast<LPNMHDR>(lParam)->hwndFrom == GetDlgItem(hDlg, IDC_SYSLINK_GITHUB_REPO))
+			if (reinterpret_cast<LPNMHDR>(lParam)->hwndFrom == GetDlgItem(hDlg, IDC_SYSLINK_GITHUB_REPO)) {
 				ShellExecuteW(nullptr, L"open", reinterpret_cast<PNMLINK>(lParam)->item.szUrl, nullptr, nullptr, SW_SHOW);
+			}
 		}	break;
 		}
 	}	break;

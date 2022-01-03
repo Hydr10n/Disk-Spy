@@ -45,8 +45,7 @@ inline int WINAPI FindListViewItem(HWND hWnd, int iItem, LPARAM lParam) {
 
 void LoadWhitelistMenu(HWND hWnd, LPPOINT lpPoint) {
 	const auto index = ListView_GetNextItem(hWnd, -1, LVNI_SELECTED);
-	if (index == -1)
-		return;
+	if (index == -1) return;
 
 	const auto menu = LoadMenu(GetModuleHandle(nullptr), MAKEINTRESOURCE(IDR_MENU_WHITELIST));
 	if (menu != nullptr) {
@@ -55,16 +54,15 @@ void LoadWhitelistMenu(HWND hWnd, LPPOINT lpPoint) {
 			if (ListView_GetSelectedCount(hWnd) == 1) {
 				TCHAR szExcluded[2]{};
 				ListView_GetItemText(hWnd, index, g_whitelistColumnData.Excluded.Index, szExcluded, ARRAYSIZE(szExcluded));
-				if (*szExcluded)
-					DeleteMenu(menu, *szExcluded == 'Y' ? ID_WHITELIST_EXCLUDE : ID_WHITELIST_INCLUDE, MF_BYCOMMAND);
+				if (*szExcluded) DeleteMenu(menu, *szExcluded == 'Y' ? ID_WHITELIST_EXCLUDE : ID_WHITELIST_INCLUDE, MF_BYCOMMAND);
 			}
 
-			if (lpPoint != nullptr)
-				TrackPopupMenu(submenu, TPM_LEFTALIGN, static_cast<int>(lpPoint->x), static_cast<int>(lpPoint->y), 0, GetParent(hWnd), nullptr);
+			if (lpPoint != nullptr) TrackPopupMenu(submenu, TPM_LEFTALIGN, static_cast<int>(lpPoint->x), static_cast<int>(lpPoint->y), 0, GetParent(hWnd), nullptr);
 			else {
 				POINT pt;
-				if (ListView_GetItemPosition(hWnd, index, &pt) && MapWindowPoints(hWnd, HWND_DESKTOP, &pt, 1))
+				if (ListView_GetItemPosition(hWnd, index, &pt) && MapWindowPoints(hWnd, HWND_DESKTOP, &pt, 1)) {
 					TrackPopupMenu(submenu, TPM_LEFTALIGN, static_cast<int>(pt.x), static_cast<int>(pt.y), 0, GetParent(hWnd), nullptr);
+				}
 			}
 		}
 
@@ -93,21 +91,18 @@ BOOL InsertRowToWhitelist(HWND hWnd, int iItem, LPCTSTR lpDrive, const MyAppData
 	return FALSE;
 }
 
-int CALLBACK WhitelistCompare(LPARAM lParam1, LPARAM lParam2, LPARAM lParamSort) {
-	const auto window = reinterpret_cast<HWND>(lParamSort);
+int CALLBACK WhitelistCompare(LPARAM a, LPARAM b, LPARAM sort) {
+	const auto window = reinterpret_cast<HWND>(sort);
 
 	TCHAR szDrive[2][2]{};
-	ListView_GetItemText(window, lParam1, g_whitelistColumnData.Drive.Index, szDrive[0], ARRAYSIZE(szDrive[0]));
-	ListView_GetItemText(window, lParam2, g_whitelistColumnData.Drive.Index, szDrive[1], ARRAYSIZE(szDrive[1]));
+	ListView_GetItemText(window, a, g_whitelistColumnData.Drive.Index, szDrive[0], ARRAYSIZE(szDrive[0]));
+	ListView_GetItemText(window, b, g_whitelistColumnData.Drive.Index, szDrive[1], ARRAYSIZE(szDrive[1]));
 
-	if (*szDrive[0] == *szDrive[1])
-		return static_cast<DWORD>(GetListViewItemData(window, static_cast<int>(lParam1))) > static_cast<DWORD>(GetListViewItemData(window, static_cast<int>(lParam2)));
-
-	if (*szDrive[0] == '?' && *szDrive[1] != '?')
-		return 1;
-
-	if (*szDrive[0] != '?' && *szDrive[1] == '?')
-		return -1;
+	if (*szDrive[0] == *szDrive[1]) {
+		return GetListViewItemData(window, static_cast<int>(a)) > GetListViewItemData(window, static_cast<int>(b));
+	}
+	if (*szDrive[0] == '?' && *szDrive[1] != '?') return 1;
+	if (*szDrive[0] != '?' && *szDrive[1] == '?') return -1;
 
 	return lstrcmp(szDrive[0], szDrive[1]);
 }
@@ -131,13 +126,13 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 		auto& driveID = s_driveIDs[iDriveNumber];
 		if (driveID = GenerateDriveID(iDriveNumber)) {
 			const TCHAR szDrive[]{ static_cast<TCHAR>('A' + iDriveNumber), ':', 0 };
-			const auto index = FindListViewItem(hWnd, -1, driveID);
+			const auto index = FindListViewItem(hWnd, -1, static_cast<LPARAM>(driveID));
 			if (index == -1) {
-				if (InsertRowToWhitelist(hWnd, 0, szDrive, MyAppData::FilterData::WhitelistData::DriveData{ driveID, FALSE }))
+				if (InsertRowToWhitelist(hWnd, 0, szDrive, MyAppData::FilterData::WhitelistData::DriveData{ driveID, FALSE })) {
 					ListView_SortItemsEx(hWnd, WhitelistCompare, hWnd);
+				}
 			}
-			else
-				ListView_SetItemText(hWnd, FindListViewItem(hWnd, -1, driveID), g_whitelistColumnData.Drive.Index, LPTSTR(szDrive));
+			else ListView_SetItemText(hWnd, FindListViewItem(hWnd, -1, driveID), g_whitelistColumnData.Drive.Index, LPTSTR(szDrive));
 		}
 	};
 
@@ -155,8 +150,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 
 		constexpr LPCTSTR FileSizeUnits[]{ TEXT("KB"), TEXT("MB"), TEXT("GB") };
 		const auto comboFileSizeUnits = GetDlgItem(hPage, IDC_COMBO_FILE_SIZE_UNITS);
-		for (const auto fileSizeUnit : FileSizeUnits)
-			ComboBox_AddString(comboFileSizeUnits, fileSizeUnit);
+		for (const auto fileSizeUnit : FileSizeUnits) ComboBox_AddString(comboFileSizeUnits, fileSizeUnit);
 		ComboBox_SetCurSel(comboFileSizeUnits, static_cast<int>(filter.CopyLimits.FileSizeUnit));
 
 		SetDlgItemInt(hPage, IDC_EDIT_MAX_DURATION, filter.CopyLimits.MaxDuration, FALSE);
@@ -165,8 +159,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 
 		constexpr LPCTSTR TimeUnits[]{ TEXT("Sec"), TEXT("Min") };
 		const auto comboTimeUnits = GetDlgItem(hPage, IDC_COMBO_TIME_UNITS);
-		for (const auto timeUnit : TimeUnits)
-			ComboBox_AddString(comboTimeUnits, timeUnit);
+		for (const auto timeUnit : TimeUnits) ComboBox_AddString(comboTimeUnits, timeUnit);
 		ComboBox_SetCurSel(comboTimeUnits, static_cast<int>(filter.CopyLimits.TimeUnit));
 
 		SetDlgItemInt(hPage, IDC_EDIT_RESERVED_STORAGE_SPACE, filter.CopyLimits.ReservedStorageSpaceGB, FALSE);
@@ -189,38 +182,30 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 			ListView_InsertColumn(whitelist, data.Index, &column);
 		}
 
-		for (UINT i = 0; i < min(ARRAYSIZE(filter.Whitelist.Drives), filter.Whitelist.DriveCount); i++)
+		for (auto i = 0; i < static_cast<int>(min(ARRAYSIZE(filter.Whitelist.Drives), filter.Whitelist.DriveCount)); i++) {
 			InsertRowToWhitelist(whitelist, i, L"?", filter.Whitelist.Drives[i]);
+		}
 
-		for (int i = 0; i < ARRAYSIZE(s_driveIDs); i++)
-			ReplaceWhitelistItem(whitelist, i);
+		for (auto i = 0; i < static_cast<int>(ARRAYSIZE(s_driveIDs)); i++) ReplaceWhitelistItem(whitelist, i);
 	}	break;
 
 	case WM_COMMAND: {
 		switch (LOWORD(wParam)) {
 		case IDC_EDIT_MAX_FILE_SIZE:
 		case IDC_EDIT_MAX_DURATION:
-		case IDC_EDIT_RESERVED_STORAGE_SPACE: {
-			if (HIWORD(wParam) == EN_CHANGE)
-				NotifyDataChanged();
-		}	break;
+		case IDC_EDIT_RESERVED_STORAGE_SPACE: if (HIWORD(wParam) == EN_CHANGE) NotifyDataChanged(); break;
 
 		case IDC_COMBO_FILE_SIZE_UNITS:
-		case IDC_COMBO_TIME_UNITS: {
-			if (HIWORD(wParam) == CBN_SELCHANGE)
-				NotifyDataChanged();
-		}	break;
+		case IDC_COMBO_TIME_UNITS: if (HIWORD(wParam) == CBN_SELCHANGE) NotifyDataChanged(); break;
 
 		case ID_WHITELIST_DELETE: {
 			const auto whitelist = GetDlgItem(hPage, IDC_LIST_WHITELIST);
 
 			BOOL dataChanged{};
 			int index;
-			while ((index = ListView_GetNextItem(whitelist, -1, LVNI_SELECTED)) != -1)
-				dataChanged = ListView_DeleteItem(whitelist, index);
+			while ((index = ListView_GetNextItem(whitelist, -1, LVNI_SELECTED)) != -1) dataChanged = ListView_DeleteItem(whitelist, index);
 
-			if (dataChanged)
-				NotifyDataChanged();
+			if (dataChanged) NotifyDataChanged();
 		}	break;
 
 		case ID_WHITELIST_INCLUDE:
@@ -242,8 +227,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 				}
 			}
 
-			if (dataChanged)
-				NotifyDataChanged();
+			if (dataChanged) NotifyDataChanged();
 		}	break;
 		}
 	}	break;
@@ -257,8 +241,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 				case 'A': {
 					if (GetAsyncKeyState(VK_CONTROL)) {
 						const auto count = ListView_GetItemCount(hdr->hwndFrom);
-						for (int i = 0; i < count; i++)
-							ListView_SetCheckState(hdr->hwndFrom, i, TRUE);
+						for (auto i = 0; i < count; i++) ListView_SetCheckState(hdr->hwndFrom, i, TRUE);
 					}
 				}	break;
 
@@ -272,44 +255,44 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 		case NM_RCLICK: {
 			if (hdr->idFrom == IDC_LIST_WHITELIST && reinterpret_cast<LPNMITEMACTIVATE>(lParam)->iItem != -1) {
 				POINT pt;
-				if (GetCursorPos(&pt))
-					LoadWhitelistMenu(hdr->hwndFrom, &pt);
+				if (GetCursorPos(&pt)) LoadWhitelistMenu(hdr->hwndFrom, &pt);
 			}
 		} break;
 
 		case PSN_APPLY: {
-			if (s_isDataSaved)
-				break;
+			if (s_isDataSaved) break;
 
 			auto& filter = s_myAppData->Filter;
 
-			filter.CopyLimits.MaxFileSize = GetDlgItemInt(hPage, IDC_EDIT_MAX_FILE_SIZE, nullptr, FALSE);
+			filter.CopyLimits.MaxFileSize = static_cast<INT>(GetDlgItemInt(hPage, IDC_EDIT_MAX_FILE_SIZE, nullptr, FALSE));
 
 			const auto comboFileSizeUnits = GetDlgItem(hPage, IDC_COMBO_FILE_SIZE_UNITS);
 			filter.CopyLimits.FileSizeUnit = static_cast<FilterData::FileSizeUnit>(ComboBox_GetCurSel(comboFileSizeUnits));
 
-			filter.CopyLimits.MaxDuration = GetDlgItemInt(hPage, IDC_EDIT_MAX_DURATION, nullptr, FALSE);
+			filter.CopyLimits.MaxDuration = static_cast<INT>(GetDlgItemInt(hPage, IDC_EDIT_MAX_DURATION, nullptr, FALSE));
 
 			const auto comboTimeUnits = GetDlgItem(hPage, IDC_COMBO_TIME_UNITS);
 			filter.CopyLimits.TimeUnit = static_cast<FilterData::TimeUnit>(ComboBox_GetCurSel(comboTimeUnits));
 
-			filter.CopyLimits.ReservedStorageSpaceGB = GetDlgItemInt(hPage, IDC_EDIT_RESERVED_STORAGE_SPACE, nullptr, FALSE);
+			filter.CopyLimits.ReservedStorageSpaceGB = static_cast<INT>(GetDlgItemInt(hPage, IDC_EDIT_RESERVED_STORAGE_SPACE, nullptr, FALSE));
 
 			filter.Whitelist.DriveCount = 0;
 			const auto whitelist = GetDlgItem(hPage, IDC_LIST_WHITELIST);
-			const auto count = min(ARRAYSIZE(filter.Whitelist.Drives), ListView_GetItemCount(whitelist));
-			for (UINT i = 0; i < count; i++) {
-				auto& drive = filter.Whitelist.Drives[filter.Whitelist.DriveCount++];
-				if ((drive.ID = static_cast<DWORD>(GetListViewItemData(whitelist, i))) != -1) {
+			for (int count = static_cast<int>(min(ARRAYSIZE(filter.Whitelist.Drives), ListView_GetItemCount(whitelist))), i = 0; i < count; i++) {
+				const auto data = GetListViewItemData(whitelist, i);
+				if (data != -1) {
+					auto& drive = filter.Whitelist.Drives[filter.Whitelist.DriveCount++];
+					drive.ID = static_cast<DWORD>(data);
+
 					TCHAR szExcluded[2]{};
 					ListView_GetItemText(whitelist, i, g_whitelistColumnData.Excluded.Index, szExcluded, ARRAYSIZE(szExcluded));
-					if (*szExcluded)
-						drive.Excluded = *szExcluded == 'Y' ? TRUE : FALSE;
+					if (*szExcluded) drive.Excluded = *szExcluded == 'Y' ? TRUE : FALSE;
 				}
 			}
 
-			if (!(s_isDataSaved = filter.Save()))
+			if (!(s_isDataSaved = filter.Save())) {
 				MessageBoxW(hPage, L"Failed to save changes to file.", nullptr, MB_OK | MB_ICONERROR);
+			}
 		}	break;
 		}
 	}	break;
@@ -323,8 +306,7 @@ INT_PTR CALLBACK FilterPropSheetPageProc(HWND hPage, UINT uMsg, WPARAM wParam, L
 
 				const auto whitelist = GetDlgItem(hPage, IDC_LIST_WHITELIST);
 
-				if (wParam == DBT_DEVICEARRIVAL)
-					ReplaceWhitelistItem(whitelist, driveNumber);
+				if (wParam == DBT_DEVICEARRIVAL) ReplaceWhitelistItem(whitelist, driveNumber);
 				else {
 					ListView_SetItemText(whitelist, FindListViewItem(whitelist, -1, s_driveIDs[driveNumber]), g_whitelistColumnData.Drive.Index, LPTSTR(TEXT("?")));
 
